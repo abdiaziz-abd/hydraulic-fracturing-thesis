@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Fracturing Under Watch — Micro-Seismic Monitoring for Hydraulic Fracturing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  :root {
+    --basalt: #14171A;
+    --basalt-2: #1C2024;
+    --basalt-3: #23282D;
+    --sandstone: #F1E9D8;
+    --ink: #ECE6D8;
+    --ink-dim: #C9C2B2;
+    --ink-muted: #8B9198;
+    --oxide: #B5502D;
+    --oxide-soft: #D97F5C;
+    --petrol: #2E8B94;
+    --petrol-soft: #5CB8C0;
+    --amber: #E8A33D;
+    --line: rgba(236, 230, 216, 0.12);
+    --line-strong: rgba(236, 230, 216, 0.24);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--basalt);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 { font-family: 'Fraunces', serif; font-weight: 600; margin: 0; }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+
+  a { color: inherit; }
+
+  ::selection { background: var(--oxide); color: var(--basalt); }
+
+  /* ---------- Progress bar (signature element) ---------- */
+  #progress-track {
+    position: fixed; top: 0; left: 0; width: 100%; height: 5px;
+    background: rgba(255,255,255,0.06); z-index: 200;
+  }
+  #progress-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--oxide), var(--amber));
+    clip-path: polygon(
+      0% 100%, 3% 20%, 6% 100%, 9% 40%, 12% 100%, 15% 10%, 18% 100%,
+      21% 30%, 24% 100%, 27% 15%, 30% 100%, 33% 45%, 36% 100%, 39% 5%,
+      42% 100%, 45% 35%, 48% 100%, 51% 20%, 54% 100%, 57% 10%, 60% 100%,
+      63% 40%, 66% 100%, 69% 15%, 72% 100%, 75% 30%, 78% 100%, 81% 5%,
+      84% 100%, 87% 25%, 90% 100%, 93% 10%, 96% 100%, 100% 40%, 100% 100%
+    );
+    transition: width 0.08s linear;
+  }
+
+  /* ---------- Nav ---------- */
+  #main-nav {
+    position: fixed; top: 5px; left: 0; width: 100%; z-index: 190;
+    padding: 14px 28px; display: flex; align-items: center; justify-content: space-between;
+    background: transparent; transition: background 0.3s ease, backdrop-filter 0.3s ease;
+  }
+  #main-nav.scrolled { background: rgba(20,23,26,0.82); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .nav-brand { font-family: 'Fraunces', serif; font-weight: 600; font-size: 15px; letter-spacing: 0.02em; }
+  .nav-brand span { color: var(--oxide-soft); }
+  .nav-dots { display: flex; gap: 10px; }
+  .nav-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong);
+    cursor: pointer; transition: background 0.25s ease, transform 0.25s ease; border: none; padding: 0;
+  }
+  .nav-dot.active { background: var(--amber); transform: scale(1.35); }
+  @media (max-width: 780px) { .nav-dots { display: none; } }
+
+  /* ---------- Hero ---------- */
+  #hero {
+    min-height: 100vh; display: flex; flex-direction: column; justify-content: center;
+    padding: 120px 8vw 60px; position: relative; overflow: hidden;
+    border-bottom: 1px solid var(--line);
+  }
+  #hero::before {
+    content: ""; position: absolute; inset: 0; opacity: 0.5; pointer-events: none;
+    background-image: radial-gradient(circle at 15% 20%, rgba(46,139,148,0.10), transparent 40%),
+                       radial-gradient(circle at 85% 75%, rgba(181,80,45,0.12), transparent 45%);
+  }
+  #hero-wave { position: absolute; bottom: 0; left: 0; width: 100%; height: 140px; opacity: 0.55; }
+  .hero-label {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.18em;
+    color: var(--amber); text-transform: uppercase; margin-bottom: 18px;
+  }
+  .hero-title { font-size: clamp(2.4rem, 5.5vw, 4.4rem); line-height: 1.05; max-width: 16ch; color: var(--sandstone); }
+  .hero-title em { font-style: italic; color: var(--oxide-soft); }
+  .hero-sub {
+    font-size: clamp(1rem, 1.6vw, 1.25rem); color: var(--ink-dim); max-width: 46ch;
+    margin-top: 22px; line-height: 1.55; font-weight: 400;
+  }
+  .hero-authors { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--ink-muted); margin-top: 16px; }
+  .hero-stats { display: flex; gap: 48px; margin-top: 56px; flex-wrap: wrap; position: relative; z-index: 2; }
+  .hero-stat { display: flex; flex-direction: column; }
+  .hero-stat .num { font-family: 'Fraunces', serif; font-size: 2.4rem; font-weight: 600; color: var(--petrol-soft); }
+  .hero-stat .num .unit { font-size: 1.1rem; color: var(--ink-muted); margin-left: 2px; }
+  .hero-stat .label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 6px; }
+  .hero-cta {
+    margin-top: 52px; display: inline-flex; align-items: center; gap: 10px; width: fit-content;
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--sandstone); text-decoration: none; border-bottom: 1px solid var(--oxide); padding-bottom: 4px;
+  }
+
+  /* ---------- Two-column body ---------- */
+  #wrapper { display: flex; position: relative; max-width: 1400px; margin: 0 auto; }
+  #text-col { width: 46%; padding: 8vh 6vw 8vh 8vw; }
+  #viz-col { width: 54%; position: relative; }
+  #viz-sticky { position: sticky; top: 0; height: 100vh; display: flex; align-items: center; padding: 0 6vw 0 2vw; }
+  .viz-panel {
+    position: absolute; inset: 0; display: none; flex-direction: column; justify-content: center;
+    padding: 0 6vw 0 2vw; opacity: 0; transition: opacity 0.5s ease;
+  }
+  .viz-panel.active { display: flex; opacity: 1; }
+  .viz-title { font-family: 'Fraunces', serif; font-size: 1.15rem; color: var(--sandstone); margin-bottom: 6px; }
+  .viz-caption { font-size: 13px; color: var(--ink-muted); margin-top: 14px; max-width: 46ch; line-height: 1.5; }
+  .viz-mount { width: 100%; }
+  svg.viz-svg { width: 100%; height: auto; overflow: visible; }
+
+  .stage-label {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.14em;
+    color: var(--amber); text-transform: uppercase; margin-bottom: 14px;
+  }
+  .scroll-section { min-height: 92vh; display: flex; flex-direction: column; justify-content: center; opacity: 0.35; transition: opacity 0.4s ease; }
+  .scroll-section.is-active { opacity: 1; }
+  .scroll-section h2 { font-size: clamp(1.5rem, 2.6vw, 2.1rem); color: var(--sandstone); max-width: 15ch; margin-bottom: 20px; }
+  .scroll-section p { font-size: 1.02rem; line-height: 1.7; color: var(--ink-dim); margin: 0 0 16px; }
+  .scroll-section strong { color: var(--sandstone); font-weight: 600; }
+  .scroll-section em { color: var(--petrol-soft); font-style: normal; font-weight: 500; }
+
+  .finding-callout {
+    margin-top: 22px; padding: 16px 20px; border-left: 3px solid var(--oxide);
+    background: rgba(181,80,45,0.08); border-radius: 2px;
+  }
+  .finding-callout strong { color: var(--amber); }
+  .data-tag {
+    margin-top: 20px; font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .tech-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+  .tech-list li { display: flex; gap: 12px; align-items: flex-start; }
+  .tech-badge {
+    flex: none; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--basalt);
+    background: var(--petrol-soft);
+  }
+  .tech-list li:nth-child(2) .tech-badge { background: var(--amber); }
+  .tech-list li:nth-child(3) .tech-badge { background: var(--oxide-soft); }
+  .tech-list p { margin: 0; font-size: 0.98rem; }
+
+  .rec-list { margin: 12px 0 0; padding-left: 20px; color: var(--ink-dim); line-height: 1.7; }
+  .rec-list strong { color: var(--sandstone); }
+
+  /* ---------- Footer ---------- */
+  #main-footer { border-top: 1px solid var(--line); padding: 60px 8vw; }
+  .footer-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 40px; max-width: 1100px; }
+  .footer-label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: var(--amber); text-transform: uppercase; margin-bottom: 10px; }
+  #main-footer em { color: var(--ink-dim); }
+  #main-footer p { color: var(--ink-dim); font-size: 14px; line-height: 1.6; margin: 4px 0; }
+  #main-footer strong { color: var(--sandstone); }
+  @media (max-width: 780px) { .footer-grid { grid-template-columns: 1fr; } }
+
+  /* ---------- Mobile: stacked, no sticky ---------- */
+  @media (max-width: 900px) {
+    #wrapper { flex-direction: column; }
+    #text-col, #viz-col { width: 100%; padding: 0 6vw; }
+    #viz-sticky { position: static; height: auto; padding: 0; }
+    .scroll-section { min-height: unset; opacity: 1; padding: 48px 0 24px; }
+    .viz-panel { position: static; display: none; opacity: 1; padding: 20px 0 36px; }
+    .viz-panel.mobile-visible { display: flex; }
+    #hero { padding: 110px 6vw 40px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; animation: none !important; }
+  }
+
+  :focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+</style>
+</head>
+<body>
+
+<div id="progress-track"><div id="progress-fill"></div></div>
+
+<nav id="main-nav">
+  <div class="nav-brand">Fracturing Under <span>Watch</span></div>
+  <div class="nav-dots" id="nav-dots"></div>
+</nav>
+
+<section id="hero">
+  <svg id="hero-wave" viewBox="0 0 1000 140" preserveAspectRatio="none"></svg>
+  <div class="hero-label">MSc Thesis — Petroleum &amp; Natural Gas Engineering</div>
+  <h1 class="hero-title">Fracturing Under <em>Watch</em></h1>
+  <p class="hero-sub">Optimizing hydraulic fracturing through micro-seismic monitoring for asset preservation and value enhancement. Every treatment sends tiny seismic signals through the rock — this thesis asks whether reading them in real time, with machine learning, changes the outcome.</p>
+  <p class="hero-authors">Abdiaziz Mohamed Abdi · Cyprus International University</p>
+  <div class="hero-stats" id="hero-stats"></div>
+  <a href="#section-context" class="hero-cta">↓ Begin the analysis</a>
+</section>
+
+<div id="wrapper">
+  <div id="text-col">
+
+    <section class="scroll-section" id="section-context" data-viz="viz-context">
+      <div class="stage-label">Stage 01 · Setting</div>
+      <h2>Fracturing the Unconventional</h2>
+      <p>Hydraulic fracturing has become the defining technique for unlocking hydrocarbons trapped in unconventional and naturally fractured reservoirs. High-pressure fluid creates and extends a network of induced fractures, connecting the wellbore to previously unreachable oil and gas.</p>
+      <p>Every fracture treatment carries risk. As fluid pressure builds underground, it releases tiny seismic events — far too small to feel, but large enough to map.</p>
+      <p>Across thousands of monitored fracture stages in North America, the largest recorded microseismic event never exceeded a magnitude of <strong>+1.0</strong> — roughly three orders of magnitude below what a person could ever feel at the surface.</p>
+      <div class="finding-callout"><strong>Shale stimulation typically stays in the -4 to -1 magnitude range</strong>, with fault-interaction events rarely climbing more than one or two magnitudes higher.</div>
+      <div class="data-tag">Source: Warpinski 2013 · Thesis Ch. 1</div>
+    </section>
+
+    <section class="scroll-section" id="section-problem" data-viz="viz-problem">
+      <div class="stage-label">Stage 02 · Gap</div>
+      <h2>Why Traditional Models Fall Short</h2>
+      <p>Conventional fracture-design software estimates a simple, symmetrical fracture before the pumps even start. In naturally fractured carbonate reservoirs, reality rarely cooperates.</p>
+      <p>Induced fractures interact unpredictably with pre-existing natural fractures and faults, producing complex networks analytical models can't anticipate. This research integrates <em>micro-seismic monitoring</em> and <em>machine learning</em> directly into fracturing evaluation, aimed at two outcomes: preserving the asset and enhancing its long-term value.</p>
+      <div class="data-tag">Source: Thesis Ch. 1, Sections 1.2–1.4</div>
+    </section>
+
+    <section class="scroll-section" id="section-methodology" data-viz="viz-methodology">
+      <div class="stage-label">Stage 03 · Method</div>
+      <h2>From Signal to Insight</h2>
+      <p>Raw microseismic data arrives noisy, sparse, and often incomplete. This study applies a machine-learning-enhanced pipeline: noise is classified and suppressed, events are detected and picked, their locations and source mechanisms resolved, and the resulting event cloud interpreted as a fracture network.</p>
+      <p>The methodology was validated against two real-world settings: the <strong>Gagarinskoe and Ozernoe</strong> carbonate oilfields in Perm Krai, Russia, and a horizontal shale gas well — <strong>Well X</strong> — in the Puguang territory, China.</p>
+      <div class="data-tag">Source: Thesis Ch. 2–3, Fig. 3-1</div>
+    </section>
+
+    <section class="scroll-section" id="section-finding1" data-viz="viz-finding1">
+      <div class="stage-label">Finding 01</div>
+      <h2>Complexity Wins</h2>
+      <p>Well 1, in the Gagarinskoe field, developed a simple, symmetrical fracture. Production jumped from 1.4 to 9.0 tons/day — but faded within <strong>11 months</strong> as the unpropped fracture closed under overburden pressure.</p>
+      <p>Well 2 developed a multi-branched fracture network intersecting natural fissures. Production rose from 2.0 to 12.5 tons/day and stayed elevated for <strong>18 months</strong> with only minimal decline.</p>
+      <p>The difference tracks the <em>storativity ratio (ω)</em> — how much fluid-storage volume the fracture network provides.</p>
+      <div class="finding-callout">Complex fracture networks sustained enhanced production for <strong>over 60% longer</strong> than simple, single-plane fractures in the same field.</div>
+      <div class="data-tag">Source: Thesis §3.2.4, Fig. 3.7–3.11</div>
+    </section>
+
+    <section class="scroll-section" id="section-finding2" data-viz="viz-finding2">
+      <div class="stage-label">Finding 02</div>
+      <h2>Matching the Model to the Problem</h2>
+      <p>Not every architecture solves the same monitoring challenge. Distinct model families cluster around specific tasks:</p>
+      <ul class="tech-list">
+        <li><span class="tech-badge">C</span><p><strong>CNNs</strong> dominate noise classification, event detection, and picking.</p></li>
+        <li><span class="tech-badge">P</span><p><strong>Physics-informed networks</strong> suit localization and source-mechanism inversion where velocity models are poorly constrained.</p></li>
+        <li><span class="tech-badge">G</span><p><strong>Graph &amp; clustering models</strong> excel at grouping events into fracture-network clusters.</p></li>
+      </ul>
+      <div class="data-tag">Source: Thesis Ch. 2, §2.2–2.8</div>
+    </section>
+
+    <section class="scroll-section" id="section-bigpicture" data-viz="viz-bigpicture">
+      <div class="stage-label">Finding 03</div>
+      <h2>The Complexity Premium</h2>
+      <p>Comparing Well 1 and Well 2 side by side makes the pattern unmistakable: the complex-network well outperformed the simple one on every production metric — flow-rate increase, duration of enhanced production, and post-frac output.</p>
+      <div class="data-tag">Source: Thesis §3.2.4, Tables 3.2–3.4</div>
+    </section>
+
+    <section class="scroll-section" id="section-conclusion" data-viz="viz-conclusion">
+      <div class="stage-label">Stage 08 · Conclusion</div>
+      <h2>A Framework for the Field</h2>
+      <p>Pair every hydraulic fracturing job with real-time micro-seismic monitoring, let machine learning carry the burden of noise suppression and event interpretation, and design fracture treatments around each reservoir's specific geology.</p>
+      <ol class="rec-list">
+        <li><strong>Reduce environmental risk</strong> through geology-aware fracture design.</li>
+        <li><strong>Extend productive well life</strong> by favoring complex, well-propped networks.</li>
+        <li><strong>Standardize ML-assisted monitoring</strong> as routine, not a specialized add-on.</li>
+      </ol>
+      <div class="data-tag">Source: Thesis Ch. 4, Recommendations 1–6</div>
+    </section>
+
+  </div>
+
+  <div id="viz-col">
+    <div id="viz-sticky">
+
+      <div class="viz-panel" id="viz-context">
+        <div class="viz-title">Fracture Growth vs. Induced Seismicity</div>
+        <div class="viz-mount"><svg class="viz-svg" id="chart-context" viewBox="0 0 560 360"></svg></div>
+        <div class="viz-caption">Fracture length grows steadily through treatment while seismic magnitude stays consistently low — illustrative pattern based on Thesis Fig. 1-2 &amp; 1-5.</div>
+      </div>
+
+      <div class="viz-panel" id="viz-problem">
+        <div class="viz-title">The Research Variable Map</div>
+        <div class="viz-mount"><svg class="viz-svg" id="chart-problem" viewBox="0 0 560 420"></svg></div>
+        <div class="viz-caption">Monitoring, machine-learning, and geological variables orbiting the thesis's two outcome constructs.</div>
+      </div>
+
+      <div class="viz-panel" id="viz-methodology">
+        <div class="viz-title">From Raw Signal to Fracture Interpretation</div>
+        <div class="viz-mount"><svg class="viz-svg" id="chart-methodology" viewBox="0 0 620 320"></svg></div>
+        <div class="viz-caption">Solid paths mark the core workflow; dashed paths mark supporting steps.</div>
+      </div>
+
+      <div class="viz-panel" id="viz-finding1">
+        <div class="viz-title">Fracture Complexity vs. Effective Duration</div>
+        <div class="viz-mount"><svg class="viz-svg" id="chart-finding1" viewBox="0 0 560 380"></svg></div>
+        <div class="viz-caption">Well 1 and Well 2 are real data points; surrounding points illustrate the broader field pattern described in §3.2.4.</div>
+      </div>
+
+      <div class="viz-panel" id="viz-finding2">
+        <div class="viz-title">ML Technique vs. Monitoring Task</div>
+        <div class="viz-mount"><svg class="viz-svg" id="chart-finding2" viewBox="0 0 620 340"></svg></div>
+        <div class="viz-caption">Darker cells indicate techniques with strong reported performance for that task, per the literature reviewed in Ch. 2.</div>
+      </div>
+
+      <div class="viz-panel" id="viz-bigpicture">
+        <div class="viz-title">Well 1 vs. Well 2 — Production Impact</div>
+        <div class="viz-mount"><svg class="viz-svg" id="chart-bigpicture" viewBox="0 0 560 420"></svg></div>
+        <div class="viz-caption">Actual field data from the Gagarinskoe field.</div>
+      </div>
+
+      <div class="viz-panel" id="viz-conclusion">
+        <div class="viz-title">Fracture Network Complexity by Well</div>
+        <div class="viz-mount"><svg class="viz-svg" id="chart-conclusion" viewBox="0 0 560 300"></svg></div>
+        <div class="viz-caption">≥85% coverage of the microseismic event footprint is classified as complex (Thesis §3.3.2.5).</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<footer id="main-footer">
+  <div class="footer-grid">
+    <div>
+      <div class="footer-label">Full Thesis</div>
+      <p><em>Optimizing Hydraulic Fracturing Through Micro-Seismic Monitoring for Asset Preservation and Value Enhancement</em></p>
+    </div>
+    <div>
+      <p><strong>Research by:</strong> Abdiaziz Mohamed Abdi</p>
+      <p><strong>Institution:</strong> Cyprus International University</p>
+      <p><strong>Program:</strong> MSc, Petroleum and Natural Gas Engineering</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  const d3s = d3;
+  const colors = { oxide: '#B5502D', oxideSoft: '#D97F5C', petrol: '#2E8B94', petrolSoft: '#5CB8C0', amber: '#E8A33D', ink: '#ECE6D8', inkDim: '#C9C2B2', inkMuted: '#8B9198', line: 'rgba(236,230,216,0.14)' };
+
+  /* ---------- Hero waveform ---------- */
+  function drawHeroWave() {
+    const svg = d3s.select('#hero-wave');
+    const pts = [];
+    for (let x = 0; x <= 1000; x += 8) {
+      const n = Math.sin(x / 40) * 18 + Math.sin(x / 11) * (Math.random() * 6) * Math.exp(-Math.pow((x - 500) / 260, 2) * -1 + 1);
+      pts.push([x, 90 + Math.sin(x / 55) * 22 + (Math.random() - 0.5) * 10 * Math.sin(x / 9)]);
+    }
+    const line = d3s.line().x(d => d[0]).y(d => d[1]).curve(d3s.curveBasis);
+    const path = svg.append('path').attr('d', line(pts)).attr('fill', 'none').attr('stroke', colors.oxideSoft).attr('stroke-width', 1.4);
+    const len = path.node().getTotalLength();
+    path.attr('stroke-dasharray', len).attr('stroke-dashoffset', len)
+      .transition().duration(3200).ease(d3s.easeCubicOut).attr('stroke-dashoffset', 0);
+    svg.append('path').attr('d', line(pts.map(p => [p[0], p[1] + 14]))).attr('fill', 'none')
+      .attr('stroke', colors.petrolSoft).attr('stroke-width', 1).attr('opacity', 0.45);
+  }
+
+  /* ---------- Hero counters ---------- */
+  const heroStats = [
+    { target: 2, unit: '', label: 'Field Case Studies' },
+    { target: 25, unit: '', label: 'Fracturing Stages (Well X)' },
+    { target: 6, unit: '', label: 'ML Technique Families' },
+    { target: 18, unit: 'mo', label: 'Longest Sustained Effect' }
+  ];
+  function buildHeroStats() {
+    const wrap = d3s.select('#hero-stats');
+    const items = wrap.selectAll('.hero-stat').data(heroStats).enter().append('div').attr('class', 'hero-stat');
+    items.append('span').attr('class', 'num mono').html(d => `0<span class="unit">${d.unit}</span>`);
+    items.append('span').attr('class', 'label').text(d => d.label);
+    const nums = wrap.selectAll('.num');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        io.unobserve(e.target);
+        const d = d3s.select(e.target).datum();
+        const start = performance.now();
+        function tick(now) {
+          const t = Math.min((now - start) / 1400, 1);
+          const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+          e.target.innerHTML = Math.floor(ease * d.target) + `<span class="unit">${d.unit}</span>`;
+          if (t < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      });
+    }, { threshold: 0.4 });
+    nums.each(function () { io.observe(this); });
+  }
+
+  /* ================= CHART RENDERERS ================= */
+
+  function renderTimeline() {
+    const data = [
+      { t: 0, len: 0, mag: -4.0 }, { t: 20, len: 12, mag: -3.6 }, { t: 40, len: 26, mag: -3.2 },
+      { t: 60, len: 41, mag: -2.8 }, { t: 80, len: 55, mag: -2.5 }, { t: 100, len: 68, mag: -2.1 },
+      { t: 120, len: 79, mag: -1.8 }, { t: 140, len: 88, mag: -1.5 }, { t: 160, len: 93, mag: -1.2 },
+      { t: 180, len: 95, mag: -1.0 }
+    ];
+    const svg = d3s.select('#chart-context'); svg.selectAll('*').remove();
+    const m = { t: 44, r: 44, b: 40, l: 16 }, w = 560 - m.l - m.r, h = 360 - m.b - 30;
+    const g = svg.append('g').attr('transform', `translate(${m.l + 44},30)`);
+    const x = d3s.scaleLinear().domain([0, 180]).range([0, w]);
+    const yLen = d3s.scaleLinear().domain([0, 100]).range([h, 0]);
+    const yMag = d3s.scaleLinear().domain([-4.2, -0.6]).range([h, 0]);
+    g.append('g').attr('transform', `translate(0,${h})`).call(d3s.axisBottom(x).ticks(5).tickSize(-h).tickFormat(d => d + 'm'))
+      .call(sel => sel.selectAll('line').attr('stroke', colors.line)).call(sel => sel.select('.domain').attr('stroke', colors.line));
+    g.append('g').call(d3s.axisLeft(yLen).ticks(4)).call(sel => sel.selectAll('text').attr('fill', colors.petrolSoft)).call(sel => sel.select('.domain').remove()).call(sel => sel.selectAll('line').remove());
+    g.append('g').attr('transform', `translate(${w},0)`).call(d3s.axisRight(yMag).ticks(4)).call(sel => sel.selectAll('text').attr('fill', colors.oxideSoft)).call(sel => sel.select('.domain').remove()).call(sel => sel.selectAll('line').remove());
+    g.selectAll('.tick text').attr('font-family', 'IBM Plex Mono').attr('font-size', 10).attr('fill', colors.inkMuted);
+
+    const lineLen = d3s.line().x(d => x(d.t)).y(d => yLen(d.len)).curve(d3s.curveMonotoneX);
+    const lineMag = d3s.line().x(d => x(d.t)).y(d => yMag(d.mag)).curve(d3s.curveMonotoneX);
+    [{ gen: lineLen, color: colors.petrolSoft }, { gen: lineMag, color: colors.oxideSoft }].forEach(spec => {
+      const p = g.append('path').datum(data).attr('d', spec.gen).attr('fill', 'none').attr('stroke', spec.color).attr('stroke-width', 2.5);
+      const len = p.node().getTotalLength();
+      p.attr('stroke-dasharray', len).attr('stroke-dashoffset', len).transition().duration(1600).ease(d3s.easeCubicOut).attr('stroke-dashoffset', 0);
+    });
+    g.append('text').attr('x', 0).attr('y', -12).attr('fill', colors.petrolSoft).attr('font-family', 'IBM Plex Mono').attr('font-size', 11).text('— Fracture length (m)');
+    g.append('text').attr('x', w * 0.55).attr('y', -12).attr('fill', colors.oxideSoft).attr('font-family', 'IBM Plex Mono').attr('font-size', 11).text('— Magnitude (Mw)');
+  }
+
+  function renderBubbles() {
+    const svg = d3s.select('#chart-problem'); svg.selectAll('*').remove();
+    const cx = 280, cy = 220;
+    const centers = [
+      { id: 'preservation', label: 'Asset\nPreservation', dx: -95, r: 46, color: colors.petrol },
+      { id: 'value', label: 'Value\nEnhancement', dx: 95, r: 46, color: colors.oxide }
+    ];
+    const vars = [
+      { label: 'Micro-seismic\nMonitoring', angle: -100, dist: 175, r: 32, color: colors.petrolSoft },
+      { label: 'Noise\nSuppression', angle: -140, dist: 168, r: 27, color: colors.petrolSoft },
+      { label: 'Event\nLocalization', angle: -60, dist: 175, r: 27, color: colors.petrolSoft },
+      { label: 'Machine\nLearning', angle: -20, dist: 168, r: 30, color: colors.amber },
+      { label: 'Source\nMechanism', angle: -160, dist: 190, r: 25, color: colors.amber },
+      { label: 'Reservoir\nGeology', angle: 70, dist: 165, r: 27, color: colors.oxideSoft },
+      { label: 'Natural Fracture\nInteraction', angle: 110, dist: 175, r: 27, color: colors.oxideSoft },
+      { label: 'Storativity\nRatio (ω)', angle: 145, dist: 168, r: 24, color: colors.oxideSoft },
+      { label: 'Fracture\nComplexity', angle: 163, dist: 185, r: 24, color: colors.oxideSoft }
+    ];
+    const g = svg.append('g').attr('transform', `translate(${cx},${cy})`);
+    centers.forEach(c => {
+      const cg = g.append('g').attr('transform', `translate(${c.dx},0)`);
+      cg.append('circle').attr('r', 0).attr('fill', c.color).attr('opacity', 0.85).transition().duration(700).attr('r', c.r);
+      const lines = c.label.split('\n');
+      lines.forEach((l, i) => cg.append('text').attr('text-anchor', 'middle').attr('y', (i - (lines.length - 1) / 2) * 13 + 4)
+        .attr('fill', '#14171A').attr('font-family', 'IBM Plex Sans').attr('font-weight', 600).attr('font-size', 12).text(l));
+    });
+    vars.forEach((v, i) => {
+      const rad = (v.angle * Math.PI) / 180;
+      const vx = Math.cos(rad) * v.dist, vy = Math.sin(rad) * v.dist;
+      const vg = g.append('g').attr('transform', `translate(${vx},${vy})`).attr('opacity', 0);
+      vg.transition().delay(150 + i * 60).duration(500).attr('opacity', 1);
+      vg.append('circle').attr('r', v.r).attr('fill', v.color).attr('opacity', 0.28).attr('stroke', v.color).attr('stroke-width', 1.4);
+      const lines = v.label.split('\n');
+      lines.forEach((l, j) => vg.append('text').attr('text-anchor', 'middle').attr('y', (j - (lines.length - 1) / 2) * 12 + 4)
+        .attr('fill', colors.ink).attr('font-family', 'IBM Plex Mono').attr('font-size', 10).text(l));
+    });
+  }
+
+  function renderSem() {
+    const svg = d3s.select('#chart-methodology'); svg.selectAll('*').remove();
+    const nodes = {
+      msm: { label: 'Micro-seismic\nData', x: 40, y: 40, w: 110, h: 46 },
+      noise: { label: 'Noise\nSuppression', x: 40, y: 120, w: 110, h: 46 },
+      detect: { label: 'Event Detection\n& Picking', x: 230, y: 40, w: 120, h: 46 },
+      locate: { label: 'Localization', x: 230, y: 120, w: 120, h: 46 },
+      source: { label: 'Source\nMechanism', x: 230, y: 200, w: 120, h: 46 },
+      cluster: { label: 'Cluster\nAnalysis', x: 420, y: 120, w: 110, h: 46, accent: true },
+      network: { label: 'Fracture Network\nInterpretation', x: 590, y: 120, w: 140, h: 56, accent: true }
+    };
+    const paths = [
+      ['msm', 'noise', true], ['noise', 'detect', true], ['noise', 'locate', true],
+      ['detect', 'locate', true], ['locate', 'source', false], ['locate', 'cluster', true],
+      ['source', 'cluster', false], ['cluster', 'network', true]
+    ];
+    const g = svg.append('g').attr('transform', 'translate(10,10)');
+    const center = k => [nodes[k].x + nodes[k].w / 2, nodes[k].y + nodes[k].h / 2];
+    g.selectAll('.pathline').data(paths).enter().append('line')
+      .attr('x1', d => center(d[0])[0]).attr('y1', d => center(d[0])[1])
+      .attr('x2', d => center(d[0])[0]).attr('y2', d => center(d[0])[1])
+      .attr('stroke', d => d[2] ? colors.petrolSoft : colors.inkMuted)
+      .attr('stroke-width', d => d[2] ? 2 : 1.3)
+      .attr('stroke-dasharray', d => d[2] ? null : '4,3')
+      .transition().duration(900).delay((d, i) => i * 90)
+      .attr('x2', d => center(d[1])[0]).attr('y2', d => center(d[1])[1]);
+
+    Object.entries(nodes).forEach(([key, n], i) => {
+      const ng = g.append('g').attr('transform', `translate(${n.x},${n.y})`).attr('opacity', 0);
+      ng.transition().delay(i * 70).duration(500).attr('opacity', 1);
+      ng.append('rect').attr('width', n.w).attr('height', n.h).attr('rx', 6)
+        .attr('fill', n.accent ? colors.oxide : colors.petrol).attr('opacity', n.accent ? 0.9 : 0.75);
+      const lines = n.label.split('\n');
+      lines.forEach((l, j) => ng.append('text').attr('x', n.w / 2).attr('text-anchor', 'middle')
+        .attr('y', n.h / 2 + (j - (lines.length - 1) / 2) * 13 + 4)
+        .attr('fill', '#14171A').attr('font-family', 'IBM Plex Sans').attr('font-weight', 600).attr('font-size', 11).text(l));
+    });
+    g.append('circle').attr('cx', 8).attr('cy', 280).attr('r', 5).attr('fill', colors.petrolSoft);
+    g.append('text').attr('x', 18).attr('y', 284).attr('fill', colors.inkMuted).attr('font-family', 'IBM Plex Mono').attr('font-size', 10).text('Core workflow');
+    g.append('line').attr('x1', 130).attr('x2', 148).attr('y1', 280).attr('y2', 280).attr('stroke', colors.inkMuted).attr('stroke-dasharray', '4,3');
+    g.append('text').attr('x', 154).attr('y', 284).attr('fill', colors.inkMuted).attr('font-family', 'IBM Plex Mono').attr('font-size', 10).text('Supporting step');
+  }
+
+  function renderScatter() {
+    const points = [
+      { name: 'Well 1 (Simple)', x: 0.28, y: 11, field: 'Gagarinskoe', real: true },
+      { name: 'Well 2 (Complex)', x: 0.82, y: 18, field: 'Gagarinskoe', real: true },
+      { name: 'Offset A', x: 0.35, y: 9, field: 'Ozernoe' }, { name: 'Offset B', x: 0.41, y: 10.5, field: 'Ozernoe' },
+      { name: 'Offset C', x: 0.55, y: 13, field: 'Gagarinskoe' }, { name: 'Offset D', x: 0.62, y: 14.5, field: 'Ozernoe' },
+      { name: 'Offset E', x: 0.70, y: 16, field: 'Gagarinskoe' }, { name: 'Offset F', x: 0.20, y: 7, field: 'Ozernoe' },
+      { name: 'Offset G', x: 0.48, y: 12, field: 'Gagarinskoe' }, { name: 'Offset H', x: 0.90, y: 19, field: 'Gagarinskoe' }
+    ];
+    const svg = d3s.select('#chart-finding1'); svg.selectAll('*').remove();
+    const m = { t: 20, r: 20, b: 44, l: 46 }, w = 560 - m.l - m.r, h = 380 - m.t - m.b;
+    const g = svg.append('g').attr('transform', `translate(${m.l},${m.t})`);
+    const x = d3s.scaleLinear().domain([0, 1]).range([0, w]);
+    const y = d3s.scaleLinear().domain([0, 20]).range([h, 0]);
+    g.append('g').attr('transform', `translate(0,${h})`).call(d3s.axisBottom(x).ticks(5).tickFormat(d3s.format('.1f')))
+      .call(sel => sel.selectAll('text').attr('fill', colors.inkMuted).attr('font-family', 'IBM Plex Mono').attr('font-size', 10));
+    g.append('g').call(d3s.axisLeft(y).ticks(5))
+      .call(sel => sel.selectAll('text').attr('fill', colors.inkMuted).attr('font-family', 'IBM Plex Mono').attr('font-size', 10));
+    g.selectAll('.domain,.tick line').attr('stroke', colors.line);
+    g.append('text').attr('x', w / 2).attr('y', h + 36).attr('text-anchor', 'middle').attr('fill', colors.inkMuted).attr('font-family', 'IBM Plex Mono').attr('font-size', 10).text('Storativity ratio (ω), normalized');
+    g.append('text').attr('transform', 'rotate(-90)').attr('x', -h / 2).attr('y', -32).attr('text-anchor', 'middle').attr('fill', colors.inkMuted).attr('font-family', 'IBM Plex Mono').attr('font-size', 10).text('Effective duration (months)');
+
+    const reg = (() => {
+      const n = points.length, sx = d3s.sum(points, d => d.x), sy = d3s.sum(points, d => d.y);
+      const sxy = d3s.sum(points, d => d.x * d.y), sxx = d3s.sum(points, d => d.x * d.x);
+      const slope = (n * sxy - sx * sy) / (n * sxx - sx * sx); const intercept = (sy - slope * sx) / n;
+      return [{ x: 0, y: intercept }, { x: 1, y: slope + intercept }];
+    })();
+    g.append('line').attr('x1', x(reg[0].x)).attr('y1', y(reg[0].y)).attr('x2', x(reg[1].x)).attr('y2', y(reg[1].y))
+      .attr('stroke', colors.amber).attr('stroke-width', 1.6).attr('stroke-dasharray', '5,4').attr('opacity', 0.8);
+
+    const color = d3s.scaleOrdinal().domain(['Gagarinskoe', 'Ozernoe']).range([colors.petrolSoft, colors.oxideSoft]);
+    g.selectAll('.pt').data(points).enter().append('circle')
+      .attr('cx', d => x(d.x)).attr('cy', d => y(d.y)).attr('r', 0)
+      .attr('fill', d => color(d.field)).attr('stroke', d => d.real ? colors.amber : 'none').attr('stroke-width', 2)
+      .transition().delay((d, i) => i * 40).duration(400).attr('r', d => d.real ? 8 : 5.5);
+    g.selectAll('.lbl').data(points.filter(d => d.real)).enter().append('text')
+      .attr('x', d => x(d.x) + 10).attr('y', d => y(d.y) + 4).attr('fill', colors.amber)
+      .attr('font-family', 'IBM Plex Mono').attr('font-size', 10).text(d => d.name);
+  }
+
+  function renderMatrix() {
+    const tasks = ['Noise Suppression', 'Event Detection', 'Localization', 'Source Mechanism', 'Cluster Analysis', 'Earthquake Prediction'];
+    const techs = ['CNN', 'RNN', 'PINN', 'GNN / Autoenc.', 'Bayesian / MDN'];
+    const strength = {
+      'Noise Suppression': { CNN: 2, RNN: 0, PINN: 0, 'GNN / Autoenc.': 2, 'Bayesian / MDN': 0 },
+      'Event Detection': { CNN: 2, RNN: 1, PINN: 0, 'GNN / Autoenc.': 0, 'Bayesian / MDN': 0 },
+      'Localization': { CNN: 1, RNN: 0, PINN: 2, 'GNN / Autoenc.': 0, 'Bayesian / MDN': 1 },
+      'Source Mechanism': { CNN: 1, RNN: 0, PINN: 2, 'GNN / Autoenc.': 0, 'Bayesian / MDN': 2 },
+      'Cluster Analysis': { CNN: 0, RNN: 0, PINN: 0, 'GNN / Autoenc.': 2, 'Bayesian / MDN': 0 },
+      'Earthquake Prediction': { CNN: 1, RNN: 1, PINN: 0, 'GNN / Autoenc.': 0, 'Bayesian / MDN': 0 }
+    };
+    const svg = d3s.select('#chart-finding2'); svg.selectAll('*').remove();
+    const m = { t: 90, l: 150 }, cw = 62, ch = 38;
+    const g = svg.append('g').attr('transform', `translate(${m.l},${m.t})`);
+    techs.forEach((t, i) => g.append('text').attr('x', i * cw + cw / 2).attr('y', -14).attr('text-anchor', 'middle')
+      .attr('fill', colors.inkDim).attr('font-family', 'IBM Plex Mono').attr('font-size', 10).text(t));
+    tasks.forEach((task, r) => {
+      g.append('text').attr('x', -12).attr('y', r * ch + ch / 2 + 4).attr('text-anchor', 'end')
+        .attr('fill', colors.inkDim).attr('font-family', 'IBM Plex Sans').attr('font-size', 11).text(task);
+      techs.forEach((tech, c) => {
+        const s = strength[task][tech];
+        const color = s === 2 ? colors.oxide : s === 1 ? colors.petrol : 'transparent';
+        const opacity = s === 2 ? 0.9 : s === 1 ? 0.45 : 0;
+        g.append('rect').attr('x', c * cw + 2).attr('y', r * ch + 2).attr('width', cw - 4).attr('height', ch - 4).attr('rx', 4)
+          .attr('fill', color).attr('opacity', 0).attr('stroke', colors.line)
+          .transition().delay((r * techs.length + c) * 18).duration(300).attr('opacity', opacity);
+      });
+    });
+  }
+
+  function renderBars() {
+    const metrics = [
+      { label: 'Production increase (t/d)', w1: 7.6, w2: 10.5, max: 12 },
+      { label: 'Effective duration (months)', w1: 11, w2: 18, max: 20 },
+      { label: 'Post-frac flow rate (t/d)', w1: 9.0, w2: 12.5, max: 14 }
+    ];
+    const svg = d3s.select('#chart-bigpicture'); svg.selectAll('*').remove();
+    const rowH = 110, barH = 22, w = 460, labelW = 0;
+    metrics.forEach((met, i) => {
+      const g = svg.append('g').attr('transform', `translate(40,${i * rowH + 20})`);
+      const x = d3s.scaleLinear().domain([0, met.max]).range([0, w]);
+      g.append('text').attr('y', -4).attr('fill', colors.inkDim).attr('font-family', 'IBM Plex Mono').attr('font-size', 11).text(met.label);
+      g.append('rect').attr('y', 10).attr('width', 0).attr('height', barH).attr('rx', 3).attr('fill', colors.petrolSoft)
+        .transition().duration(700).attr('width', x(met.w1));
+      g.append('text').attr('x', 6).attr('y', 10 + barH / 2 + 4).attr('fill', '#14171A').attr('font-family', 'IBM Plex Mono').attr('font-weight', 600).attr('font-size', 11).text('Well 1 · ' + met.w1);
+      g.append('rect').attr('y', 10 + barH + 8).attr('width', 0).attr('height', barH).attr('rx', 3).attr('fill', colors.oxide)
+        .transition().duration(700).delay(150).attr('width', x(met.w2));
+      g.append('text').attr('x', 6).attr('y', 10 + barH + 8 + barH / 2 + 4).attr('fill', '#14171A').attr('font-family', 'IBM Plex Mono').attr('font-weight', 600).attr('font-size', 11).text('Well 2 · ' + met.w2);
+    });
+  }
+
+  function renderMap() {
+    const wells = [
+      { name: 'Well 1', field: 'Gagarinskoe', value: 45 },
+      { name: 'Well 2', field: 'Gagarinskoe', value: 78 },
+      { name: 'Well X', field: 'Puguang', value: 85 }
+    ];
+    const svg = d3s.select('#chart-conclusion'); svg.selectAll('*').remove();
+    const scale = d3s.scaleLinear().domain([40, 90]).range([0.25, 1]);
+    const cw = 150, gap = 24, startX = (560 - (cw * 3 + gap * 2)) / 2;
+    wells.forEach((w, i) => {
+      const g = svg.append('g').attr('transform', `translate(${startX + i * (cw + gap)}, 40)`);
+      g.append('rect').attr('width', cw).attr('height', cw).attr('rx', 8)
+        .attr('fill', colors.petrol).attr('opacity', 0)
+        .transition().delay(i * 150).duration(600).attr('opacity', scale(w.value));
+      g.append('text').attr('x', cw / 2).attr('y', cw / 2 - 6).attr('text-anchor', 'middle')
+        .attr('fill', colors.ink).attr('font-family', 'Fraunces').attr('font-size', 30).attr('font-weight', 600)
+        .text(w.value + '%').attr('opacity', 0).transition().delay(i * 150 + 200).duration(400).attr('opacity', 1);
+      g.append('text').attr('x', cw / 2).attr('y', cw / 2 + 20).attr('text-anchor', 'middle')
+        .attr('fill', colors.inkMuted).attr('font-family', 'IBM Plex Mono').attr('font-size', 10).text('COMPLEXITY');
+      g.append('text').attr('x', cw / 2).attr('y', cw + 26).attr('text-anchor', 'middle')
+        .attr('fill', colors.sandstone || colors.ink).attr('font-family', 'IBM Plex Sans').attr('font-weight', 600).attr('font-size', 13).text(w.name);
+      g.append('text').attr('x', cw / 2).attr('y', cw + 44).attr('text-anchor', 'middle')
+        .attr('fill', colors.inkMuted).attr('font-family', 'IBM Plex Mono').attr('font-size', 10).text(w.field);
+    });
+    svg.append('line').attr('x1', 0).attr('x2', 0).attr('y1', 0).attr('y2', 0); // no-op keeps svg non-empty on some browsers
+  }
+
+  const renderers = {
+    'viz-context': renderTimeline, 'viz-problem': renderBubbles, 'viz-methodology': renderSem,
+    'viz-finding1': renderScatter, 'viz-finding2': renderMatrix, 'viz-bigpicture': renderBars, 'viz-conclusion': renderMap
+  };
+  const initialized = {};
+
+  function activateViz(id) {
+    document.querySelectorAll('.viz-panel').forEach(p => p.classList.toggle('active', p.id === id));
+    if (!initialized[id]) { initialized[id] = true; renderers[id] && renderers[id](); }
+  }
+
+  /* ---------- Nav dots ---------- */
+  const sections = Array.from(document.querySelectorAll('.scroll-section'));
+  const navDotsWrap = d3s.select('#nav-dots');
+  sections.forEach((s, i) => {
+    navDotsWrap.append('button').attr('class', 'nav-dot' + (i === 0 ? ' active' : ''))
+      .attr('aria-label', s.querySelector('h2').textContent)
+      .on('click', () => s.scrollIntoView({ behavior: 'smooth' }));
+  });
+  function setActiveDot(i) { d3s.selectAll('.nav-dot').classed('active', (d, idx) => idx === i); }
+
+  /* ---------- Scroll tracking (desktop) ---------- */
+  function isMobile() { return window.innerWidth <= 900; }
+
+  if (!isMobile()) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const el = entry.target;
+        if (entry.isIntersecting) {
+          el.classList.add('is-active');
+          const idx = sections.indexOf(el);
+          activateViz(el.dataset.viz); setActiveDot(idx);
+        } else { el.classList.remove('is-active'); }
+      });
+    }, { root: null, rootMargin: '-10% 0px -50% 0px', threshold: 0 });
+    sections.forEach(s => io.observe(s));
+  } else {
+    // Mobile: show every panel inline under its own section, no switching needed
+    sections.forEach(s => {
+      const panel = document.getElementById(s.dataset.viz);
+      if (panel) { panel.classList.add('mobile-visible'); s.after(panel); }
+    });
+    Object.keys(renderers).forEach(id => { initialized[id] = true; renderers[id](); });
+  }
+
+  /* ---------- Progress bar + nav bg ---------- */
+  window.addEventListener('scroll', () => {
+    const scrolled = window.scrollY;
+    const total = document.documentElement.scrollHeight - window.innerHeight;
+    d3s.select('#progress-fill').style('width', Math.min(100, (scrolled / total) * 100) + '%');
+    d3s.select('#main-nav').classed('scrolled', scrolled > 80);
+  }, { passive: true });
+
+  drawHeroWave();
+  buildHeroStats();
+})();
+</script>
+</body>
+</html>
