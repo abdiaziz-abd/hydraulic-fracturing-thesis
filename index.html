@@ -4,685 +4,1663 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Fracturing Under Watch — Micro-Seismic Monitoring for Hydraulic Fracturing</title>
+<meta name="description" content="An MSc thesis, read as a scrollytelling data story: how micro-seismic monitoring and machine learning change the outcome of hydraulic fracturing in naturally fractured carbonate and shale reservoirs." />
+<meta name="author" content="Abdiaziz Mohamed Abdi" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="Fracturing Under Watch" />
+<meta property="og:description" content="Optimizing hydraulic fracturing through micro-seismic monitoring for asset preservation and value enhancement." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
-  :root {
-    --basalt: #14171A;
-    --basalt-2: #1C2024;
-    --basalt-3: #23282D;
-    --sandstone: #F1E9D8;
-    --ink: #ECE6D8;
-    --ink-dim: #C9C2B2;
-    --ink-muted: #8B9198;
-    --oxide: #B5502D;
-    --oxide-soft: #D97F5C;
-    --petrol: #2E8B94;
-    --petrol-soft: #5CB8C0;
-    --amber: #E8A33D;
-    --line: rgba(236, 230, 216, 0.12);
-    --line-strong: rgba(236, 230, 216, 0.24);
-  }
+/* ═══════════════════════════════════════════
+   TOKENS — light is the default, dark is opt-in
+═══════════════════════════════════════════ */
+:root {
+  --paper:        #F8F6F2;
+  --paper-dark:   #EFEBE3;
+  --ink:          #14181F;
+  --ink-light:    #454C58;
+  --ink-muted:    #8A8F99;
+  --heading:      #1E2A33;
+  --accent:       #0F6E78;   /* petrol — monitoring / measurement */
+  --accent-soft:  #3A9AA3;
+  --secondary:    #B5502D;   /* oxide — rock / production */
+  --secondary-soft:#D2764F;
+  --gold:         #B8860B;
+  --green:        #1E8449;
+  --grid:         rgba(20,24,31,0.08);
+  --border:       rgba(20,24,31,0.13);
+  --shadow-sm:    0 2px 8px rgba(0,0,0,0.06);
+  --shadow-md:    0 8px 32px rgba(0,0,0,0.10);
+  --radius:       8px;
+  --font-serif:   'Lora', Georgia, serif;
+  --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
+  --transition:   0.8s cubic-bezier(0.77,0,0.175,1);
+  --transition-fast: 0.25s ease;
+}
 
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body {
-    margin: 0;
-    background: var(--basalt);
-    color: var(--ink);
-    font-family: 'IBM Plex Sans', sans-serif;
-    -webkit-font-smoothing: antialiased;
-  }
+body.dark-theme {
+  --paper:        #0D1116;
+  --paper-dark:   #141A21;
+  --ink:          #ECEFF3;
+  --ink-light:    #B4BCC7;
+  --ink-muted:    #79838F;
+  --heading:      #DDE5EC;
+  --accent:       #4FD1DE;
+  --accent-soft:  #7EE1EB;
+  --secondary:    #E8825C;
+  --secondary-soft:#F0A184;
+  --gold:         #E8B23D;
+  --green:        #2EE59D;
+  --grid:         rgba(236,239,243,0.09);
+  --border:       rgba(236,239,243,0.15);
+  --shadow-sm:    0 2px 10px rgba(0,0,0,0.35);
+  --shadow-md:    0 10px 38px rgba(0,0,0,0.5);
+}
 
-  h1, h2, h3 { font-family: 'Fraunces', serif; font-weight: 600; margin: 0; }
-  .mono { font-family: 'IBM Plex Mono', monospace; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; font-size: 16px; }
 
-  a { color: inherit; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  line-height: 1.75;
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.4s ease, color 0.4s ease;
+}
+::selection { background: var(--accent); color: var(--paper); }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-  ::selection { background: var(--oxide); color: var(--basalt); }
+/* ── PROGRESS ────────────────────────────── */
+#progress-bar {
+  position: fixed; top: 0; left: 0; width: 0%; height: 3px; z-index: 1000;
+  background: linear-gradient(90deg, var(--accent), var(--secondary));
+  transition: width 0.1s linear;
+}
 
-  /* ---------- Progress bar (signature element) ---------- */
-  #progress-track {
-    position: fixed; top: 0; left: 0; width: 100%; height: 5px;
-    background: rgba(255,255,255,0.06); z-index: 200;
-  }
-  #progress-fill {
-    height: 100%; width: 0%;
-    background: linear-gradient(90deg, var(--oxide), var(--amber));
-    clip-path: polygon(
-      0% 100%, 3% 20%, 6% 100%, 9% 40%, 12% 100%, 15% 10%, 18% 100%,
-      21% 30%, 24% 100%, 27% 15%, 30% 100%, 33% 45%, 36% 100%, 39% 5%,
-      42% 100%, 45% 35%, 48% 100%, 51% 20%, 54% 100%, 57% 10%, 60% 100%,
-      63% 40%, 66% 100%, 69% 15%, 72% 100%, 75% 30%, 78% 100%, 81% 5%,
-      84% 100%, 87% 25%, 90% 100%, 93% 10%, 96% 100%, 100% 40%, 100% 100%
-    );
-    transition: width 0.08s linear;
-  }
+/* ── NAV ─────────────────────────────────── */
+#main-nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 500;
+  padding: 12px 40px; display: flex; align-items: center;
+  background: transparent; transition: background 0.4s ease, box-shadow 0.4s ease;
+}
+#main-nav.scrolled { background: color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter: blur(12px); box-shadow: var(--shadow-sm); }
+.nav-inner { width: 100%; display: flex; align-items: center; justify-content: space-between; }
+.nav-brand-group { display: flex; align-items: center; gap: 12px; }
+.nav-logo {
+  font-family: var(--font-sans); font-weight: 700; font-size: 0.8rem;
+  letter-spacing: 0.12em; color: var(--heading); text-transform: uppercase;
+}
+.nav-logo span { color: var(--secondary); }
+.nav-controls-group { display: flex; align-items: center; gap: 24px; }
+.nav-sections { display: flex; gap: 9px; align-items: center; }
+.nav-dot {
+  display: block; width: 8px; height: 8px; border-radius: 50%; border: none; padding: 0;
+  background: var(--ink-muted); opacity: 0.35; cursor: pointer;
+  transition: all var(--transition-fast); position: relative;
+}
+.nav-dot::after {
+  content: attr(data-label); position: absolute; top: 100%; left: 50%;
+  transform: translate(-50%, 6px) scale(0.85); margin-top: 6px;
+  background: var(--ink); color: var(--paper);
+  font-family: var(--font-sans); font-size: 0.625rem; font-weight: 600; letter-spacing: 0.04em;
+  padding: 3px 7px; border-radius: 4px; white-space: nowrap;
+  opacity: 0; pointer-events: none; transition: all var(--transition-fast);
+}
+.nav-dot:hover { opacity: 1; background: var(--accent); transform: scale(1.4); }
+.nav-dot:hover::after { opacity: 1; transform: translate(-50%, 6px) scale(1); }
+.nav-dot.active { opacity: 1; background: var(--secondary); transform: scale(1.35); }
+.theme-toggle-btn {
+  background: none; border: none; padding: 0; cursor: pointer; color: var(--heading);
+  opacity: 0.55; width: 19px; height: 19px; display: flex; align-items: center; justify-content: center;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+.theme-toggle-btn:hover { opacity: 1; color: var(--accent); transform: scale(1.1); }
+.theme-toggle-btn svg { width: 100%; height: 100%; }
+.theme-toggle-btn .sun-icon { display: none; }
+.theme-toggle-btn .moon-icon { display: block; }
+body.dark-theme .theme-toggle-btn .sun-icon { display: block; }
+body.dark-theme .theme-toggle-btn .moon-icon { display: none; }
 
-  /* ---------- Nav ---------- */
-  #main-nav {
-    position: fixed; top: 5px; left: 0; width: 100%; z-index: 190;
-    padding: 14px 28px; display: flex; align-items: center; justify-content: space-between;
-    background: transparent; transition: background 0.3s ease, backdrop-filter 0.3s ease;
-  }
-  #main-nav.scrolled { background: rgba(20,23,26,0.82); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
-  .nav-brand { font-family: 'Fraunces', serif; font-weight: 600; font-size: 15px; letter-spacing: 0.02em; }
-  .nav-brand span { color: var(--oxide-soft); }
-  .nav-dots { display: flex; gap: 10px; }
-  .nav-dot {
-    width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong);
-    cursor: pointer; transition: background 0.25s ease, transform 0.25s ease; border: none; padding: 0;
-  }
-  .nav-dot.active { background: var(--amber); transform: scale(1.35); }
-  @media (max-width: 780px) { .nav-dots { display: none; } }
+/* ── HERO ────────────────────────────────── */
+#hero {
+  position: relative; height: 100vh; height: 100dvh; min-height: 620px;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  overflow: hidden; background: var(--paper);
+}
+.hero-bg {
+  position: absolute; inset: 0; overflow: hidden;
+  background:
+    radial-gradient(900px 560px at 15% 8%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 55%),
+    radial-gradient(820px 520px at 85% 14%, color-mix(in srgb, var(--secondary) 13%, transparent), transparent 55%),
+    var(--paper);
+}
+.hero-pattern {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--accent) 16%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--secondary) 13%, transparent) 1px, transparent 1px);
+  background-size: 34px 34px; background-position: center top;
+}
+.hero-overlay {
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at center, transparent 0%,
+    color-mix(in srgb, var(--paper) 66%, transparent) 68%, var(--paper) 100%);
+}
+#hero-wave { position: absolute; left: 0; right: 0; bottom: 130px; width: 100%; height: 120px; opacity: 0.5; }
+.hero-content { position: relative; z-index: 10; text-align: center; padding: 0 24px 40px; max-width: 820px; }
+.hero-label {
+  font-family: var(--font-sans); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.22em;
+  text-transform: uppercase; color: var(--accent); margin-bottom: 22px;
+}
+.hero-title {
+  font-family: var(--font-sans); font-size: clamp(2.9rem, 8.5vw, 5rem); font-weight: 800;
+  line-height: 1.0; letter-spacing: -0.03em; color: var(--heading); margin-bottom: 20px;
+}
+.hero-accent {
+  background: linear-gradient(135deg, var(--accent), var(--secondary));
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.hero-sub {
+  font-family: var(--font-sans); font-size: 0.98rem; color: var(--ink-light);
+  letter-spacing: 0.01em; margin-bottom: 10px;
+}
+.hero-authors { font-family: var(--font-serif); font-style: italic; font-size: 0.9rem; color: var(--ink-muted); margin-bottom: 26px; }
+.hero-teaser { font-family: var(--font-serif); font-size: 1.02rem; line-height: 1.8; color: var(--ink-light); max-width: 640px; margin: 0 auto 34px; }
+.hero-teaser em { color: var(--accent); font-style: italic; }
+.hero-cta {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 52px; height: 52px; border-radius: 50%;
+  border: 1.5px solid var(--accent); color: var(--accent); background: transparent;
+  text-decoration: none; transition: all var(--transition-fast);
+}
+.hero-cta:hover { background: var(--accent); color: var(--paper); transform: translateY(-2px); }
+.hero-cta svg { animation: bounce 2s infinite; }
+@keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+.hero-stats {
+  position: absolute; bottom: 0; left: 0; right: 0; z-index: 10;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--paper-dark) 88%, transparent);
+  backdrop-filter: blur(8px);
+}
+.hero-stat { padding: 18px 12px; text-align: center; border-right: 1px solid var(--border); }
+.hero-stat:last-child { border-right: none; }
+.stat-num { font-family: var(--font-sans); font-size: clamp(1.4rem, 3.4vw, 2rem); font-weight: 800; color: var(--heading); font-variant-numeric: tabular-nums; }
+.stat-unit { font-family: var(--font-sans); font-size: 0.95rem; font-weight: 700; color: var(--accent); }
+.stat-label { font-family: var(--font-sans); font-size: 0.66rem; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-muted); margin-top: 3px; line-height: 1.4; }
 
-  /* ---------- Hero ---------- */
-  #hero {
-    min-height: 100vh; display: flex; flex-direction: column; justify-content: center;
-    padding: 120px 8vw 60px; position: relative; overflow: hidden;
-    border-bottom: 1px solid var(--line);
-  }
-  #hero::before {
-    content: ""; position: absolute; inset: 0; opacity: 0.5; pointer-events: none;
-    background-image: radial-gradient(circle at 15% 20%, rgba(46,139,148,0.10), transparent 40%),
-                       radial-gradient(circle at 85% 75%, rgba(181,80,45,0.12), transparent 45%);
-  }
-  #hero-wave { position: absolute; bottom: 0; left: 0; width: 100%; height: 140px; opacity: 0.55; }
-  .hero-label {
-    font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.18em;
-    color: var(--amber); text-transform: uppercase; margin-bottom: 18px;
-  }
-  .hero-title { font-size: clamp(2.4rem, 5.5vw, 4.4rem); line-height: 1.05; max-width: 16ch; color: var(--sandstone); }
-  .hero-title em { font-style: italic; color: var(--oxide-soft); }
-  .hero-sub {
-    font-size: clamp(1rem, 1.6vw, 1.25rem); color: var(--ink-dim); max-width: 46ch;
-    margin-top: 22px; line-height: 1.55; font-weight: 400;
-  }
-  .hero-authors { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--ink-muted); margin-top: 16px; }
-  .hero-stats { display: flex; gap: 48px; margin-top: 56px; flex-wrap: wrap; position: relative; z-index: 2; }
-  .hero-stat { display: flex; flex-direction: column; }
-  .hero-stat .num { font-family: 'Fraunces', serif; font-size: 2.4rem; font-weight: 600; color: var(--petrol-soft); }
-  .hero-stat .num .unit { font-size: 1.1rem; color: var(--ink-muted); margin-left: 2px; }
-  .hero-stat .label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 6px; }
-  .hero-cta {
-    margin-top: 52px; display: inline-flex; align-items: center; gap: 10px; width: fit-content;
-    font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--sandstone); text-decoration: none; border-bottom: 1px solid var(--oxide); padding-bottom: 4px;
-  }
+/* ── SIDECAR ─────────────────────────────── */
+#sidecar-wrapper { display: flex; align-items: flex-start; max-width: 1480px; margin: 0 auto; }
+#text-column { width: 40%; padding: 0 44px 0 56px; position: relative; z-index: 10; }
+.scroll-section {
+  min-height: 100vh; display: flex; flex-direction: column; justify-content: center;
+  padding: 84px 0; opacity: 0.38; transform: translateY(18px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.scroll-section.is-active { opacity: 1; transform: translateY(0); }
+.section-label {
+  font-family: var(--font-sans); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--accent); margin-bottom: 14px;
+  display: flex; align-items: center; gap: 10px;
+}
+.section-label::before { content: ''; width: 24px; height: 2px; background: var(--accent); }
+.scroll-section h2 {
+  font-family: var(--font-sans); font-size: clamp(1.45rem, 2.4vw, 2rem); font-weight: 700;
+  color: var(--heading); line-height: 1.22; letter-spacing: -0.022em; margin-bottom: 18px;
+}
+.scroll-section p { font-family: var(--font-serif); font-size: 1rem; line-height: 1.85; color: var(--ink-light); margin-bottom: 15px; }
+.scroll-section strong { color: var(--ink); font-weight: 600; }
+.scroll-section em { color: var(--accent); font-style: italic; }
+.scroll-section ol, .scroll-section ul { margin: 12px 0 18px; padding-left: 1.2rem; }
+.scroll-section li { font-family: var(--font-serif); font-size: 0.98rem; line-height: 1.75; color: var(--ink-light); margin-bottom: 9px; }
 
-  /* ---------- Two-column body ---------- */
-  #wrapper { display: flex; position: relative; max-width: 1400px; margin: 0 auto; }
-  #text-col { width: 46%; padding: 8vh 6vw 8vh 8vw; }
-  #viz-col { width: 54%; position: relative; }
-  #viz-sticky { position: sticky; top: 0; height: 100vh; display: flex; align-items: center; padding: 0 6vw 0 2vw; }
-  .viz-panel {
-    position: absolute; inset: 0; display: none; flex-direction: column; justify-content: center;
-    padding: 0 6vw 0 2vw; opacity: 0; transition: opacity 0.5s ease;
-  }
-  .viz-panel.active { display: flex; opacity: 1; }
-  .viz-title { font-family: 'Fraunces', serif; font-size: 1.15rem; color: var(--sandstone); margin-bottom: 6px; }
-  .viz-caption { font-size: 13px; color: var(--ink-muted); margin-top: 14px; max-width: 46ch; line-height: 1.5; }
-  .viz-mount { width: 100%; }
-  svg.viz-svg { width: 100%; height: auto; overflow: visible; }
+.finding-callout {
+  margin: 18px 0 4px; padding: 15px 18px; border-left: 3px solid var(--secondary);
+  background: color-mix(in srgb, var(--secondary) 7%, transparent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-family: var(--font-serif); font-size: 0.96rem; line-height: 1.7; color: var(--ink-light);
+}
+.finding-callout strong { color: var(--secondary); font-weight: 700; }
+.finding-callout.cool { border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.finding-callout.cool strong { color: var(--accent); }
 
-  .stage-label {
-    font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.14em;
-    color: var(--amber); text-transform: uppercase; margin-bottom: 14px;
-  }
-  .scroll-section { min-height: 92vh; display: flex; flex-direction: column; justify-content: center; opacity: 0.35; transition: opacity 0.4s ease; }
-  .scroll-section.is-active { opacity: 1; }
-  .scroll-section h2 { font-size: clamp(1.5rem, 2.6vw, 2.1rem); color: var(--sandstone); max-width: 15ch; margin-bottom: 20px; }
-  .scroll-section p { font-size: 1.02rem; line-height: 1.7; color: var(--ink-dim); margin: 0 0 16px; }
-  .scroll-section strong { color: var(--sandstone); font-weight: 600; }
-  .scroll-section em { color: var(--petrol-soft); font-style: normal; font-weight: 500; }
+.data-source-tag {
+  margin-top: 18px; padding-top: 11px; border-top: 1px solid var(--border);
+  font-family: var(--font-sans); font-size: 0.68rem; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--ink-muted);
+}
 
-  .finding-callout {
-    margin-top: 22px; padding: 16px 20px; border-left: 3px solid var(--oxide);
-    background: rgba(181,80,45,0.08); border-radius: 2px;
-  }
-  .finding-callout strong { color: var(--amber); }
-  .data-tag {
-    margin-top: 20px; font-family: 'IBM Plex Mono', monospace; font-size: 11px;
-    color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.04em;
-  }
-  .tech-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
-  .tech-list li { display: flex; gap: 12px; align-items: flex-start; }
-  .tech-badge {
-    flex: none; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; color: var(--basalt);
-    background: var(--petrol-soft);
-  }
-  .tech-list li:nth-child(2) .tech-badge { background: var(--amber); }
-  .tech-list li:nth-child(3) .tech-badge { background: var(--oxide-soft); }
-  .tech-list p { margin: 0; font-size: 0.98rem; }
+.spec-list { list-style: none; padding-left: 0; margin: 14px 0 18px; }
+.spec-list li { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 15px; }
+.spec-badge {
+  flex: none; width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-sans); font-size: 0.72rem; font-weight: 700;
+  background: var(--accent); color: var(--paper); margin-top: 3px;
+}
+.spec-list li:nth-child(2) .spec-badge { background: var(--gold); }
+.spec-list li:nth-child(3) .spec-badge { background: var(--secondary); }
+.spec-list li:nth-child(4) .spec-badge { background: var(--green); }
+.spec-list li div { font-family: var(--font-serif); font-size: 0.97rem; line-height: 1.7; color: var(--ink-light); }
 
-  .rec-list { margin: 12px 0 0; padding-left: 20px; color: var(--ink-dim); line-height: 1.7; }
-  .rec-list strong { color: var(--sandstone); }
+.keyfig {
+  display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 4px;
+}
+.keyfig div {
+  flex: 1 1 120px; padding: 11px 13px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: color-mix(in srgb, var(--paper-dark) 55%, transparent);
+}
+.keyfig b { display: block; font-family: var(--font-sans); font-size: 1.15rem; font-weight: 700; color: var(--heading); font-variant-numeric: tabular-nums; }
+.keyfig span { font-family: var(--font-sans); font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-muted); }
 
-  /* ---------- Footer ---------- */
-  #main-footer { border-top: 1px solid var(--line); padding: 60px 8vw; }
-  .footer-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 40px; max-width: 1100px; }
-  .footer-label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: var(--amber); text-transform: uppercase; margin-bottom: 10px; }
-  #main-footer em { color: var(--ink-dim); }
-  #main-footer p { color: var(--ink-dim); font-size: 14px; line-height: 1.6; margin: 4px 0; }
-  #main-footer strong { color: var(--sandstone); }
-  @media (max-width: 780px) { .footer-grid { grid-template-columns: 1fr; } }
+/* ── VIZ COLUMN ──────────────────────────── */
+#viz-column { width: 60%; position: sticky; top: 0; height: 100vh; overflow: hidden; }
+#viz-sticky { width: 100%; height: 100%; position: relative; background: var(--paper-dark); border-left: 1px solid var(--border); }
+#mobile-viz-topbar { display: none; }
+#viz-resize-handle { display: none; }
+#viz-panels-container { position: absolute; inset: 0; }
+.viz-panel {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  padding: 46px 44px 32px; opacity: 0; transform: translateY(26px) scale(0.985);
+  transition: opacity var(--transition), transform var(--transition); pointer-events: none;
+}
+.viz-panel.active { opacity: 1; transform: none; pointer-events: all; }
+.viz-title {
+  font-family: var(--font-sans); font-size: 0.76rem; font-weight: 700; letter-spacing: 0.11em;
+  text-transform: uppercase; color: var(--ink-muted);
+  margin-bottom: 16px; padding-bottom: 11px; border-bottom: 1px solid var(--border);
+}
+.viz-panel svg.chart { flex: 1; width: 100%; min-height: 0; }
+.viz-caption {
+  font-family: var(--font-sans); font-size: 0.74rem; line-height: 1.6; color: var(--ink-muted);
+  margin-top: 14px; padding-top: 11px; border-top: 1px solid var(--border);
+}
+.viz-caption b { color: var(--ink-light); font-weight: 600; }
 
-  /* ---------- Mobile: stacked, no sticky ---------- */
-  @media (max-width: 900px) {
-    #wrapper { flex-direction: column; }
-    #text-col, #viz-col { width: 100%; padding: 0 6vw; }
-    #viz-sticky { position: static; height: auto; padding: 0; }
-    .scroll-section { min-height: unset; opacity: 1; padding: 48px 0 24px; }
-    .viz-panel { position: static; display: none; opacity: 1; padding: 20px 0 36px; }
-    .viz-panel.mobile-visible { display: flex; }
-    #hero { padding: 110px 6vw 40px; }
+/* ── FOOTER ──────────────────────────────── */
+#main-footer { border-top: 1px solid var(--border); background: var(--paper-dark); padding: 64px 8vw 40px; }
+.footer-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 48px; max-width: 1100px; margin: 0 auto; }
+.footer-label { font-family: var(--font-sans); font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 12px; }
+.footer-thesis p { font-family: var(--font-serif); font-size: 1.15rem; line-height: 1.6; color: var(--ink); font-style: italic; }
+.footer-meta p { font-family: var(--font-sans); font-size: 0.88rem; color: var(--ink-light); margin: 5px 0; }
+.footer-meta strong { color: var(--ink); font-weight: 600; }
+.footer-bottom { max-width: 1100px; margin: 40px auto 0; padding-top: 20px; border-top: 1px solid var(--border); }
+.footer-bottom p { font-family: var(--font-sans); font-size: 0.75rem; color: var(--ink-muted); }
+
+/* ── MOBILE ──────────────────────────────── */
+@media (max-width: 900px) {
+  #main-nav { display: none !important; }
+  #sidecar-wrapper { flex-direction: column; align-items: stretch; }
+  #viz-column {
+    order: -1; width: 100%; position: sticky; top: 0; z-index: 300;
+    height: auto; overflow: visible; box-shadow: 0 4px 16px rgba(0,0,0,0.10);
   }
+  #text-column { order: 1; width: 100%; padding: 0 22px; }
+  #viz-sticky { height: auto; border-left: none; border-bottom: 2px solid var(--border); }
 
-  @media (prefers-reduced-motion: reduce) {
-    html { scroll-behavior: auto; }
-    * { transition: none !important; animation: none !important; }
+  #mobile-viz-topbar {
+    display: flex; align-items: stretch; background: var(--paper-dark);
+    border-bottom: 2px solid var(--border); position: sticky; top: 0; z-index: 501;
   }
+  #mobile-tab-bar { flex: 1; display: flex; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+  #mobile-tab-bar::-webkit-scrollbar { display: none; }
+  .mob-tab {
+    flex-shrink: 0; padding: 11px 13px; background: transparent; border: none;
+    border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; line-height: 1;
+    font-family: var(--font-sans); font-size: 0.66rem; font-weight: 700;
+    letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-muted);
+    transition: color 0.2s ease, border-color 0.2s ease;
+  }
+  .mob-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  #mobile-controls { display: flex; align-items: stretch; border-left: 1px solid var(--border); }
+  #mobile-controls .theme-toggle-btn { width: 44px; height: auto; border-right: 1px solid var(--border); }
+  #mobile-controls .theme-toggle-btn svg { width: 17px; height: 17px; }
+  #viz-toggle {
+    flex-shrink: 0; width: 44px; background: transparent; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; color: var(--ink-muted);
+  }
+  #viz-toggle svg { transition: transform 0.35s cubic-bezier(0.77,0,0.175,1); }
+  #viz-column.viz-collapsed #viz-toggle svg { transform: rotate(180deg); }
 
-  :focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+  #viz-panels-container {
+    position: relative; inset: unset; height: 54vh; min-height: 290px; overflow: hidden;
+    transition: height 0.4s cubic-bezier(0.77,0,0.175,1), min-height 0.4s cubic-bezier(0.77,0,0.175,1), opacity 0.35s ease;
+  }
+  #viz-column.viz-collapsed #viz-panels-container { height: 0; min-height: 0; opacity: 0; pointer-events: none; }
+  #viz-column.viz-collapsed #viz-resize-handle { display: none; }
+  #viz-resize-handle {
+    display: flex; align-items: center; justify-content: center; height: 22px;
+    background: var(--paper-dark); border-bottom: 2px solid var(--border);
+    cursor: ns-resize; touch-action: none; user-select: none;
+  }
+  .viz-resize-pill { width: 32px; height: 4px; border-radius: 3px; background: var(--ink-muted); opacity: 0.35; transition: all 0.2s ease; }
+  #viz-resize-handle:hover .viz-resize-pill, #viz-resize-handle.is-dragging .viz-resize-pill { opacity: 0.8; width: 48px; background: var(--accent); }
+
+  .viz-panel { padding: 14px 15px 11px; }
+  .viz-title { font-size: 0.66rem; margin-bottom: 10px; padding-bottom: 7px; }
+  .viz-caption { font-size: 0.68rem; margin-top: 8px; padding-top: 8px; }
+  .scroll-section { min-height: auto; padding: 54px 0; opacity: 1; transform: none; }
+  .hero-stats { grid-template-columns: repeat(2, 1fr); }
+  .hero-stat:nth-child(2) { border-right: none; }
+  .hero-stat:nth-child(1), .hero-stat:nth-child(2) { border-bottom: 1px solid var(--border); }
+  .footer-grid { grid-template-columns: 1fr; gap: 28px; }
+  #main-footer { padding: 44px 22px 30px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition-duration: 0.01ms !important; animation: none !important; }
+}
 </style>
 </head>
 <body>
 
-<div id="progress-track"><div id="progress-fill"></div></div>
+<div id="progress-bar"></div>
 
 <nav id="main-nav">
-  <div class="nav-brand">Fracturing Under <span>Watch</span></div>
-  <div class="nav-dots" id="nav-dots"></div>
+  <div class="nav-inner">
+    <div class="nav-brand-group">
+      <span class="nav-logo">Fracturing Under <span>Watch</span></span>
+    </div>
+    <div class="nav-controls-group">
+      <div class="nav-sections" id="nav-sections"></div>
+      <button class="theme-toggle-btn" aria-label="Toggle colour theme">
+        <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg>
+        <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </div>
 </nav>
 
 <section id="hero">
-  <svg id="hero-wave" viewBox="0 0 1000 140" preserveAspectRatio="none"></svg>
-  <div class="hero-label">MSc Thesis — Petroleum &amp; Natural Gas Engineering</div>
-  <h1 class="hero-title">Fracturing Under <em>Watch</em></h1>
-  <p class="hero-sub">Optimizing hydraulic fracturing through micro-seismic monitoring for asset preservation and value enhancement. Every treatment sends tiny seismic signals through the rock — this thesis asks whether reading them in real time, with machine learning, changes the outcome.</p>
-  <p class="hero-authors">Abdiaziz Mohamed Abdi · Cyprus International University</p>
+  <div class="hero-bg"><div class="hero-pattern"></div><div class="hero-overlay"></div></div>
+  <svg id="hero-wave" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true"></svg>
+  <div class="hero-content">
+    <div class="hero-label">MSc Thesis · Petroleum &amp; Natural Gas Engineering</div>
+    <h1 class="hero-title">Fracturing Under <span class="hero-accent">Watch</span></h1>
+    <p class="hero-sub">Optimizing hydraulic fracturing through micro-seismic monitoring for asset preservation and value enhancement</p>
+    <p class="hero-authors">Abdiaziz Mohamed Abdi · Cyprus International University · Nicosia, 2025</p>
+    <p class="hero-teaser">Every fracture treatment shakes the rock a little. Those tremors are a thousand times too small to feel — but large enough to <em>map</em>. This thesis asks a simple question with an expensive answer: if you listen to them in real time, and let machine learning do the listening, does the well produce more?</p>
+    <a href="#section-context" class="hero-cta" aria-label="Begin the analysis">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+    </a>
+  </div>
   <div class="hero-stats" id="hero-stats"></div>
-  <a href="#section-context" class="hero-cta">↓ Begin the analysis</a>
 </section>
 
-<div id="wrapper">
-  <div id="text-col">
+<div id="sidecar-wrapper">
+  <div id="text-column">
 
-    <section class="scroll-section" id="section-context" data-viz="viz-context">
-      <div class="stage-label">Stage 01 · Setting</div>
-      <h2>Fracturing the Unconventional</h2>
-      <p>Hydraulic fracturing has become the defining technique for unlocking hydrocarbons trapped in unconventional and naturally fractured reservoirs. High-pressure fluid creates and extends a network of induced fractures, connecting the wellbore to previously unreachable oil and gas.</p>
-      <p>Every fracture treatment carries risk. As fluid pressure builds underground, it releases tiny seismic events — far too small to feel, but large enough to map.</p>
-      <p>Across thousands of monitored fracture stages in North America, the largest recorded microseismic event never exceeded a magnitude of <strong>+1.0</strong> — roughly three orders of magnitude below what a person could ever feel at the surface.</p>
-      <div class="finding-callout"><strong>Shale stimulation typically stays in the -4 to -1 magnitude range</strong>, with fault-interaction events rarely climbing more than one or two magnitudes higher.</div>
-      <div class="data-tag">Source: Warpinski 2013 · Thesis Ch. 1</div>
+    <section class="scroll-section" id="section-context" data-viz="viz-context" data-nav="Setting" data-mob="Setting">
+      <div class="section-label">Section 01 · Setting</div>
+      <h2>Cracking rock you cannot see</h2>
+      <p>Hydraulic fracturing is now the default technique for pulling hydrocarbons out of tight, unconventional and naturally fractured formations. Fluid is pumped until the rock fails, and a network of fissures opens a path from the reservoir to the wellbore.</p>
+      <p>In carbonate reservoirs the process refuses to behave. Their pore structure carries both primary voids and secondary cavities, fractures and fissures — so an advancing hydraulic fracture meets natural ones and <strong>crosses, deflects, or localises</strong>, leaking fluid into side paths as it goes.</p>
+      <p>Nobody can see this happen. What can be observed is the sound of it: as injection raises formation pressure, strain energy piles up around the fracture tip until the rock breaks and releases elastic waves. That is a <em>micro-seismic event</em>, and a dense enough cloud of them draws the fracture.</p>
+      <div class="finding-callout cool">At least half of all micro-seismic events occur <strong>after</strong> the fracture tip has already passed the event location — evidence that much of the signal comes from interaction with natural fractures, not from the tip itself.</div>
+      <div class="data-source-tag">Source: Thesis §1.1, §1.5 · after Warpinski (2013), Fig. 1-2</div>
     </section>
 
-    <section class="scroll-section" id="section-problem" data-viz="viz-problem">
-      <div class="stage-label">Stage 02 · Gap</div>
-      <h2>Why Traditional Models Fall Short</h2>
-      <p>Conventional fracture-design software estimates a simple, symmetrical fracture before the pumps even start. In naturally fractured carbonate reservoirs, reality rarely cooperates.</p>
-      <p>Induced fractures interact unpredictably with pre-existing natural fractures and faults, producing complex networks analytical models can't anticipate. This research integrates <em>micro-seismic monitoring</em> and <em>machine learning</em> directly into fracturing evaluation, aimed at two outcomes: preserving the asset and enhancing its long-term value.</p>
-      <div class="data-tag">Source: Thesis Ch. 1, Sections 1.2–1.4</div>
+    <section class="scroll-section" id="section-signal" data-viz="viz-signal" data-nav="The signal" data-mob="Signal">
+      <div class="section-label">Section 02 · The signal</div>
+      <h2>A millionth of the energy you put in</h2>
+      <p>Induced events fall roughly between magnitude <strong>−2.0 and +2.5</strong>; shale stimulation itself sits in the <strong>−4 to −1</strong> band. Across thousands of monitored stages in North America, the largest micro-seism ever recorded did not exceed <strong>+1.0</strong> — about three orders of magnitude below anything a person could feel at surface.</p>
+      <p>The energy accounting is starker still. Total detectable micro-seismic energy released during a treatment is on the order of hundreds of kilojoules. The treatment itself injects hundreds of <em>millions</em> of kilojoules. The seismic response is roughly one part in a million.</p>
+      <p>The same asymmetry applies to volume: summed micro-seismic displacement amounts to a few litres against hundreds or thousands of cubic metres of fluid pumped. This is why the event cloud must be read as a <strong>map of where the rock moved</strong>, never as a direct measure of stimulated reservoir volume.</p>
+      <div class="finding-callout">The Gutenberg–Richter <strong>b-value</strong> sits near 1.0 for natural earthquakes but ranges <strong>1.0 – 2.0</strong> for fracturing-induced events: proportionally far more small events, far fewer large ones.</div>
+      <div class="data-source-tag">Source: Thesis §1.2, §1.5.1 · Figs. 1-3, 1-5</div>
     </section>
 
-    <section class="scroll-section" id="section-methodology" data-viz="viz-methodology">
-      <div class="stage-label">Stage 03 · Method</div>
-      <h2>From Signal to Insight</h2>
-      <p>Raw microseismic data arrives noisy, sparse, and often incomplete. This study applies a machine-learning-enhanced pipeline: noise is classified and suppressed, events are detected and picked, their locations and source mechanisms resolved, and the resulting event cloud interpreted as a fracture network.</p>
-      <p>The methodology was validated against two real-world settings: the <strong>Gagarinskoe and Ozernoe</strong> carbonate oilfields in Perm Krai, Russia, and a horizontal shale gas well — <strong>Well X</strong> — in the Puguang territory, China.</p>
-      <div class="data-tag">Source: Thesis Ch. 2–3, Fig. 3-1</div>
+    <section class="scroll-section" id="section-safety" data-viz="viz-safety" data-nav="Depth" data-mob="Depth">
+      <div class="section-label">Section 03 · Environment</div>
+      <h2>The distance to the water table</h2>
+      <p>The loudest public objection to fracturing is that fractures reach drinking water. Monitoring data answers it directly, because every stage's shallowest and deepest detected event is recorded.</p>
+      <p>Across thousands of fractures in six major North American shale basins — Barnett, Marcellus, Woodford, Eagle Ford, Haynesville and Muskwa/Evie — vertical growth is real but small next to the separation from near-surface aquifers. Stress contrasts, material changes between layers, horizontal bedding interfaces and high-permeability streaks all act as barriers that spread growth sideways instead of up.</p>
+      <p>The spikes that do appear in the record are <strong>fault interactions</strong>. A fault intersected by the treatment typically raises event magnitude by one to two units, and can steer growth up, down or sideways — which is precisely why it shows up on the monitor.</p>
+      <div class="finding-callout cool">The fluid volume required for a fracture to climb from treatment depth to a water well <strong>far exceeds</strong> anything pumped in a real job, before the geological barriers are even counted.</div>
+      <div class="data-source-tag">Source: Thesis §1.5.2 · Figs. 1-4, 1-5</div>
     </section>
 
-    <section class="scroll-section" id="section-finding1" data-viz="viz-finding1">
-      <div class="stage-label">Finding 01</div>
-      <h2>Complexity Wins</h2>
-      <p>Well 1, in the Gagarinskoe field, developed a simple, symmetrical fracture. Production jumped from 1.4 to 9.0 tons/day — but faded within <strong>11 months</strong> as the unpropped fracture closed under overburden pressure.</p>
-      <p>Well 2 developed a multi-branched fracture network intersecting natural fissures. Production rose from 2.0 to 12.5 tons/day and stayed elevated for <strong>18 months</strong> with only minimal decline.</p>
-      <p>The difference tracks the <em>storativity ratio (ω)</em> — how much fluid-storage volume the fracture network provides.</p>
-      <div class="finding-callout">Complex fracture networks sustained enhanced production for <strong>over 60% longer</strong> than simple, single-plane fractures in the same field.</div>
-      <div class="data-tag">Source: Thesis §3.2.4, Fig. 3.7–3.11</div>
+    <section class="scroll-section" id="section-gap" data-viz="viz-gap" data-nav="The gap" data-mob="Gap">
+      <div class="section-label">Section 04 · The gap</div>
+      <h2>Where the design model breaks</h2>
+      <p>Fracture-design software predicts a fracture before the pumps start. Analytical models are only accurate under idealised conditions; numerical models are constrained by small samples and laboratory scale, and both lean on an initial, frequently imprecise estimate of recovery. No existing method can confirm on its own that a fracture <em>network</em> formed at all.</p>
+      <p>The three families of diagnostics each fall short somewhere. Inclinometer surveys depend heavily on instrument placement and lose accuracy as networks get complex. Near-well tools — compass logging, PLT, image logs — see fracture height at the wellbore and nothing about length. Indirect methods invert pressure and rate data, and that inverse problem has no unique solution.</p>
+      <p>Micro-seismic monitoring is the exception that is field-scale, direct and largely insensitive to instrument placement. Its own weakness is resolution: location error grows with source–receiver distance, from roughly <strong>16 m at 305 m</strong> to as much as <strong>350 m at 900 m</strong>.</p>
+      <div class="finding-callout">In carbonate reservoirs, roughly <strong>80% of treatments</strong> produce complex geometry — but the design software anticipated a single symmetric fracture in every one of them.</div>
+      <div class="data-source-tag">Source: Thesis §1.2, §1.3, §3.2.4 · Table 3.2</div>
     </section>
 
-    <section class="scroll-section" id="section-finding2" data-viz="viz-finding2">
-      <div class="stage-label">Finding 02</div>
-      <h2>Matching the Model to the Problem</h2>
-      <p>Not every architecture solves the same monitoring challenge. Distinct model families cluster around specific tasks:</p>
-      <ul class="tech-list">
-        <li><span class="tech-badge">C</span><p><strong>CNNs</strong> dominate noise classification, event detection, and picking.</p></li>
-        <li><span class="tech-badge">P</span><p><strong>Physics-informed networks</strong> suit localization and source-mechanism inversion where velocity models are poorly constrained.</p></li>
-        <li><span class="tech-badge">G</span><p><strong>Graph &amp; clustering models</strong> excel at grouping events into fracture-network clusters.</p></li>
+    <section class="scroll-section" id="section-method" data-viz="viz-method" data-nav="Method" data-mob="Method">
+      <div class="section-label">Section 05 · Method</div>
+      <h2>From raw signal to fracture network</h2>
+      <p>Downhole recordings arrive buried in low-frequency background noise that conventional bandpass filtering cannot remove. Worse, "dry" events — slip on pre-existing fractures away from the active hydraulic fracture — look almost identical to genuine signal because they are generated the same way. Left in, they inflate the apparent stimulated volume.</p>
+      <p>The pipeline this thesis assembles runs noise classification and suppression first, then detection and picking, then localisation and source-mechanism inversion, and finally clusters the surviving events into a fracture-network interpretation. Machine learning is inserted at every stage rather than bolted on at the end.</p>
+      <p>Two field settings validate it: the <strong>Gagarinskoe and Ozernoe</strong> carbonate oilfields in Perm Krai, Russia, monitored with ground-based receiver arrays; and <strong>Well X</strong>, a horizontal shale-gas well in the Puguang territory of China's Sichuan Basin.</p>
+      <div class="keyfig">
+        <div><b>10–15 m</b><span>Perforation interval</span></div>
+        <div><b>5–200 Hz</b><span>Geophone band</span></div>
+        <div><b>10–1000 Hz</b><span>Micro-seismic band</span></div>
+      </div>
+      <div class="data-source-tag">Source: Thesis Ch. 2–3 · Fig. 3-1, §3.2.1</div>
+    </section>
+
+    <section class="scroll-section" id="section-ml" data-viz="viz-ml" data-nav="Machine learning" data-mob="ML">
+      <div class="section-label">Section 06 · Machine learning</div>
+      <h2>Matching the model to the task</h2>
+      <p>Chapter Two surveys ML across the whole monitoring chain, and the useful result is that architectures do not compete — they specialise.</p>
+      <ul class="spec-list">
+        <li><span class="spec-badge">C</span><div><strong>CNNs</strong> dominate noise classification, event detection and phase picking, where the input is an image-like waveform patch.</div></li>
+        <li><span class="spec-badge">P</span><div><strong>Physics-informed networks</strong> take localisation and source-mechanism inversion, embedding the wave equation so predictions stay physically admissible where velocity models are poorly constrained.</div></li>
+        <li><span class="spec-badge">G</span><div><strong>Graph, clustering and autoencoder models</strong> group events into fracture-network clusters and reconstruct gapped wavefields.</div></li>
+        <li><span class="spec-badge">B</span><div><strong>Bayesian and mixture-density models</strong> return a distribution rather than a point, which is what source-mechanism work actually needs.</div></li>
       </ul>
-      <div class="data-tag">Source: Thesis Ch. 2, §2.2–2.8</div>
+      <p>Three obstacles remain honest ones: labelled seismic data is scarce and site-specific, deep models are hard to interpret in a domain where the reasoning must be auditable, and training cost is real.</p>
+      <div class="data-source-tag">Source: Thesis Ch. 2, §2.2–2.9</div>
     </section>
 
-    <section class="scroll-section" id="section-bigpicture" data-viz="viz-bigpicture">
-      <div class="stage-label">Finding 03</div>
-      <h2>The Complexity Premium</h2>
-      <p>Comparing Well 1 and Well 2 side by side makes the pattern unmistakable: the complex-network well outperformed the simple one on every production metric — flow-rate increase, duration of enhanced production, and post-frac output.</p>
-      <div class="data-tag">Source: Thesis §3.2.4, Tables 3.2–3.4</div>
+    <section class="scroll-section" id="section-fields" data-viz="viz-fields" data-nav="Case 1 geology" data-mob="Fields">
+      <div class="section-label">Case study 01 · Geology</div>
+      <h2>Two carbonate fields, side by side</h2>
+      <p>Gagarinskoe and Ozernoe sit in the north-eastern Solikamsk depression, with hydrocarbons held in a Famennian-age reef complex. They are close neighbours and deliberately unalike.</p>
+      <p>Gagarinskoe is shallower, hotter and more permeable: reservoir surface at <strong>−1778.3 m</strong>, initial pressure <strong>20.7 MPa</strong>, <strong>39 mD</strong> and <strong>11%</strong> porosity, across a 12.3 m oil column. Ozernoe lies at <strong>−1997 m</strong> with <strong>18.2 MPa</strong>, <strong>31 mD</strong> and <strong>9%</strong> porosity, but a thicker 19.8 m column.</p>
+      <p>X-ray microtomography of the cores shows pores and cavities; electron microscopy resolves microfractures and microcaverns. That void structure is not decoration — it is the template every induced fracture has to negotiate.</p>
+      <div class="data-source-tag">Source: Thesis §3.1 · Table 3.1, Figs. 3-3, 3-4</div>
     </section>
 
-    <section class="scroll-section" id="section-conclusion" data-viz="viz-conclusion">
-      <div class="stage-label">Stage 08 · Conclusion</div>
-      <h2>A Framework for the Field</h2>
-      <p>Pair every hydraulic fracturing job with real-time micro-seismic monitoring, let machine learning carry the burden of noise suppression and event interpretation, and design fracture treatments around each reservoir's specific geology.</p>
-      <ol class="rec-list">
-        <li><strong>Reduce environmental risk</strong> through geology-aware fracture design.</li>
-        <li><strong>Extend productive well life</strong> by favoring complex, well-propped networks.</li>
-        <li><strong>Standardize ML-assisted monitoring</strong> as routine, not a specialized add-on.</li>
+    <section class="scroll-section" id="section-wells" data-viz="viz-wells" data-nav="Well 1 vs Well 2" data-mob="Wells 1&nbsp;/&nbsp;2">
+      <div class="section-label">Finding 01 · Two wells</div>
+      <h2>Eleven months, or eighteen</h2>
+      <p><strong>Well 1</strong> was designed for a simple fracture and got one. POST-FRAC REPORT predicted a 72 m half-length; micro-seismic monitoring measured 73 m and the well test 75 m — a symmetric two-wing fracture about 15 m high, barely interacting with anything natural. Flow rose from <strong>1.4 to 9.0 t/day</strong>, then decayed back to pre-treatment levels over <strong>11 months</strong> as the inadequately propped fracture closed under overburden.</p>
+      <p><strong>Well 2</strong> was designed for 73 m and produced something else entirely: a multi-branched network with events scattered across a <strong>100–350 m radius</strong>, and a well-test half-length of <strong>382 m</strong> — five times the design. Fracture height reached 20 m. Flow went from <strong>2.0 to 12.5 t/day</strong> and held, with minimal decline, for <strong>18 months</strong>.</p>
+      <p>The separator is the <em>storativity ratio (ω)</em> from pressure-recovery analysis — how much fluid-storage volume the fracture system actually holds. Well 2's pressure curves show the double-porosity signature of the Warren–Root model: an interconnected network, not one plane.</p>
+      <div class="finding-callout">Incremental recovery: <strong>4.9% OIIP</strong> for the simple fracture against <strong>17.7% OIIP</strong> for the complex network — in adjacent wells, in the same reservoir.</div>
+      <div class="data-source-tag">Source: Thesis §3.2.4 · Table 3.2, Figs. 3-7, 3-10, 3-11</div>
+    </section>
+
+    <section class="scroll-section" id="section-premium" data-viz="viz-premium" data-nav="Complexity premium" data-mob="Premium">
+      <div class="section-label">Finding 02 · At field scale</div>
+      <h2>The complexity premium</h2>
+      <p>Two wells make an anecdote. The thesis therefore pools <strong>109 hydraulic fracturing operations</strong> across both fields — 28 at Gagarinskoe, 81 at Ozernoe — and splits them by realised fracture geometry.</p>
+      <p>The result is unusually clean. Averaged across every operation, the immediate flow-rate gain is <em>almost identical</em>: 12.0 t/day for simple fractures, 12.2 t/day for complex ones. Complexity buys nothing on day one.</p>
+      <p>It buys everything afterwards. Effective duration runs <strong>127 days</strong> for simple geometry against <strong>311 days</strong> for complex — and cumulative additional oil follows it, <strong>6.94</strong> against <strong>13.18 thousand tonnes</strong>.</p>
+      <div class="finding-callout">Equal on arrival, <strong>2.45× longer</strong> in effect, <strong>1.9× more oil</strong>. The premium is entirely a duration effect, and duration tracks the storativity ratio linearly.</div>
+      <div class="data-source-tag">Source: Thesis §3.2.4 · Tables 3.3 &amp; 3.4, Figs. 3-12 – 3-14</div>
+    </section>
+
+    <section class="scroll-section" id="section-wellx" data-viz="viz-wellx" data-nav="Case 2 rock" data-mob="Well X">
+      <div class="section-label">Case study 02 · The rock</div>
+      <h2>Well X: a much harder problem</h2>
+      <p>Well X targets the Dalong Formation in the Puguang region of the Sichuan Basin, with two targets at <strong>4,565 m</strong> and <strong>5,800 m</strong> and a <strong>1,235 m</strong> horizontal section. Curvature attributes flag weak stratigraphic planes at 4,565–4,651 m and 4,865–4,968 m, where natural fractures concentrate.</p>
+      <p>The rock argues both ways. Porosity is punishing — <strong>0.62 to 4.93%</strong>, averaging 2.61% — but gas content averages <strong>5.14 m³/t</strong> with <strong>71.58%</strong> of it free gas, which is what delivers rate after a frac. Mineralogy is favourable: silica and calcium together exceed 80% while clay averages just 4.28%, so the formation is brittle enough to shatter into a network rather than deform.</p>
+      <p>Against that: cohesion <strong>13.12 MPa</strong>, internal friction angle <strong>55.76°</strong>, tensile strength <strong>12.47 MPa</strong>, fracture toughness <strong>0.77 MPa·√m</strong>, and a closure stress of <strong>96 MPa</strong> that threatens long-term conductivity. Maximum horizontal stress runs east–west, minimum north–south, confirmed by FMI drilling-induced fractures and breakouts.</p>
+      <div class="data-source-tag">Source: Thesis §3.3.1 · Table 3-5, Figs. 3-15 – 3-20</div>
+    </section>
+
+    <section class="scroll-section" id="section-stages" data-viz="viz-stages" data-nav="25 stages" data-mob="Stages">
+      <div class="section-label">Case study 02 · Execution</div>
+      <h2>Twenty-five stages against the pressure limit</h2>
+      <p>The design answered the rock with scale: <strong>25 stages</strong> of roughly 45 m, a few-cluster layout, high-viscosity pre-pad, integrated temporary plugging, and <strong>55 m³/m</strong> of fluid at <strong>2.5 m³/m</strong> proppant intensity.</p>
+      <p>In the field, wellhead pressure ran <strong>96 to 112 MPa</strong> at <strong>12–16 m³/min</strong> — pressed against the equipment limit, which is exactly why the rate could not be raised further. Total proppant reached <strong>2,940 m³</strong>: 70/140 quartz sand first to polish the perforations and cut friction, then ceramic in 70/140 and 40/70 (about 80% of the total), with 30/50 used sparingly near the fracture entry for conductivity. Realised intensity ranged 1.6–3.4 m³/m, averaging 2.4.</p>
+      <p>Ground detectors in a star pattern showed propagation running predominantly <strong>westward</strong>, with fractures reaching <strong>154–478 m</strong> long, <strong>53–87 m</strong> wide and <strong>25–48 m</strong> high — growing unevenly on either side of the trajectory.</p>
+      <div class="finding-callout cool">Pre-flush matters more than expected: cross-linked slickwater drove vertical growth, and at least <strong>20 m³ of polishing sand</strong> was needed before the benefit appeared at all.</div>
+      <div class="data-source-tag">Source: Thesis §3.3.2.1–3.3.2.3 · Figs. 3-21 – 3-25</div>
+    </section>
+
+    <section class="scroll-section" id="section-plugging" data-viz="viz-plugging" data-nav="Plugging" data-mob="Plugging">
+      <div class="section-label">Finding 03 · Diversion</div>
+      <h2>Forcing complexity with plugs</h2>
+      <p>Temporary plugging blocks perforations mid-stage so pressure redistributes and untouched clusters break down. Pressure limits meant it could not be used on every stage — which accidentally produced a controlled comparison.</p>
+      <p>Where plugging balls were dropped, operating pressure rose <strong>1.32 to 5.5 MPa</strong>; particles gave <strong>0.5 to 6.33 MPa</strong>. Micro-seismic response separates the two clearly: stages <strong>11 to 17</strong> generated markedly more events after plugging, several of them well down the trajectory, while the first nine and last five stages stayed sparse.</p>
+      <p>Balls outperformed particles. Particles mostly re-activated ground that was already stimulated; balls pushed propagation into new rock and spread it evenly across clusters.</p>
+      <div class="finding-callout">Both signals agree — pressure rise <em>and</em> event count increase together. That coincidence is the evidence that the plug worked, not merely that pumping got harder.</div>
+      <div class="data-source-tag">Source: Thesis §3.3.2.4 · Fig. 3-26</div>
+    </section>
+
+    <section class="scroll-section" id="section-complexity" data-viz="viz-complexity" data-nav="Grading" data-mob="Grading">
+      <div class="section-label">Finding 04 · Classification</div>
+      <h2>Grading a fracture network</h2>
+      <p>"Complex" needs a threshold or it is just a compliment. The thesis builds one directly from the event cloud: connect adjacent micro-fractures of similar orientation, discard isolated ones, and measure how much of the micro-seismic footprint the resulting effective grid covers.</p>
+      <p>At <strong>85% coverage or above</strong> the network counts as complex. Around <strong>60%</strong> it is moderately complex. Below <strong>60%</strong> it does not qualify, whatever the event count suggests.</p>
+      <p>Applying it to Well X separates engineering from geology. Stages <strong>13 and 15</strong> scored highest — and both sit beside pre-existing natural fractures near fault zones. Stages far from faults stayed low regardless of how they were pumped.</p>
+      <div class="finding-callout">Geology is the prerequisite; engineering is the multiplier. Plugging, pre-flush and fluid design refine a complex network where the rock permits one — they cannot manufacture it where it does not.</div>
+      <div class="data-source-tag">Source: Thesis §3.3.2.5, §3.3.3 · Fig. 3-27</div>
+    </section>
+
+    <section class="scroll-section" id="section-conclusion" data-viz="viz-conclusion" data-nav="Conclusion" data-mob="Conclusion">
+      <div class="section-label">Section 13 · Conclusion</div>
+      <h2>A framework for the field</h2>
+      <p>Micro-seismic monitoring turns out to be less a verification tool than a design instrument. It maps what actually formed, corrects volume estimates that models get wrong, catches unintended growth toward faults, and — paired with well testing — explains <em>why</em> one well holds its rate and its neighbour does not.</p>
+      <p>Machine learning is what makes it routine rather than specialist: automated detection and classification, noise suppression that filtering cannot achieve, and wavefield reconstruction from gapped data.</p>
+      <ol>
+        <li><strong>Monitor every job.</strong> Real-time micro-seismic on all treatments, to sharpen SRV estimates and flag unintended growth.</li>
+        <li><strong>Automate the interpretation.</strong> Extend ML across detection, noise suppression and wavefield reconstruction.</li>
+        <li><strong>Design to the geology.</strong> Evaluate natural fractures before pumping; tune the treatment to them.</li>
+        <li><strong>Suppress noise properly.</strong> Low-frequency background and "dry" events are the main source of mapping error.</li>
+        <li><strong>Train and share.</strong> Operators, researchers and regulators need the same working vocabulary.</li>
+        <li><strong>Report the environmental record.</strong> Monitoring data is the strongest available evidence on containment — publish it.</li>
       </ol>
-      <div class="data-tag">Source: Thesis Ch. 4, Recommendations 1–6</div>
+      <div class="data-source-tag">Source: Thesis Ch. 4 · §4.1–4.3</div>
     </section>
 
   </div>
 
-  <div id="viz-col">
+  <div id="viz-column">
     <div id="viz-sticky">
 
-      <div class="viz-panel" id="viz-context">
-        <div class="viz-title">Fracture Growth vs. Induced Seismicity</div>
-        <div class="viz-mount"><svg class="viz-svg" id="chart-context" viewBox="0 0 560 360"></svg></div>
-        <div class="viz-caption">Fracture length grows steadily through treatment while seismic magnitude stays consistently low — illustrative pattern based on Thesis Fig. 1-2 &amp; 1-5.</div>
+      <div id="mobile-viz-topbar">
+        <div id="mobile-tab-bar"></div>
+        <div id="mobile-controls">
+          <button class="theme-toggle-btn" aria-label="Toggle colour theme">
+            <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg>
+            <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
+          <button id="viz-toggle" aria-label="Collapse visualization">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+          </button>
+        </div>
       </div>
 
-      <div class="viz-panel" id="viz-problem">
-        <div class="viz-title">The Research Variable Map</div>
-        <div class="viz-mount"><svg class="viz-svg" id="chart-problem" viewBox="0 0 560 420"></svg></div>
-        <div class="viz-caption">Monitoring, machine-learning, and geological variables orbiting the thesis's two outcome constructs.</div>
+      <div id="viz-panels-container">
+
+        <div class="viz-panel active" id="viz-context" data-render="growth">
+          <div class="viz-title">Fracture length &amp; event population over treatment time</div>
+          <svg class="chart" id="chart-growth" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">Both fracture wings plotted against pumping time. The dashed envelope is <b>√t</b> growth — the signature of high leak-off into natural fractures. <b>Tip events</b> mark the advancing front; <b>interior events</b> occur behind it, in rock the tip already passed. Pattern after Thesis Fig. 1-2.</div>
+        </div>
+
+        <div class="viz-panel" id="viz-signal" data-render="magnitude">
+          <div class="viz-title">Magnitude range and the energy budget</div>
+          <svg class="chart" id="chart-magnitude" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">Upper: where induced events sit on the moment-magnitude scale against the surface-perception threshold. Lower: released micro-seismic energy against injected treatment energy, on a log axis — six orders of magnitude apart. Thesis §1.5.1.</div>
+        </div>
+
+        <div class="viz-panel" id="viz-safety" data-render="depth">
+          <div class="viz-title">Fracture height growth vs. depth to fresh water</div>
+          <svg class="chart" id="chart-depth" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">Each bar spans the shallowest to deepest detected micro-seism for a basin; the band at top is the depth range of water wells. Depths are indicative of the basins named in Thesis §1.5.2 — the measured quantity is the <b>separation</b>, which is kilometres in every case.</div>
+        </div>
+
+        <div class="viz-panel" id="viz-gap" data-render="gap">
+          <div class="viz-title">Designed vs. measured fracture half-length</div>
+          <svg class="chart" id="chart-gap" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">Three independent estimates per well: pre-job design, micro-seismic monitoring, and post-job well test. Well 1's three agree within 4%. Well 2's diverge by a factor of five — the design model had no way to anticipate a network. Thesis Table 3.2.</div>
+        </div>
+
+        <div class="viz-panel" id="viz-method" data-render="workflow">
+          <div class="viz-title">Interpretation pipeline, signal to network</div>
+          <svg class="chart" id="chart-workflow" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">Solid arrows are the core path; dashed arrows are supporting inputs. Machine learning enters at every stage rather than only at interpretation. Thesis Fig. 3-1 and Ch. 2 structure.</div>
+        </div>
+
+        <div class="viz-panel" id="viz-ml" data-render="matrix">
+          <div class="viz-title">Model family × monitoring task</div>
+          <svg class="chart" id="chart-matrix" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">Filled cells mark the architecture reported as dominant for that task in the Chapter Two literature review; lighter cells mark secondary use. Thesis §2.2–2.8.</div>
+        </div>
+
+        <div class="viz-panel" id="viz-fields" data-render="fields">
+          <div class="viz-title">Gagarinskoe vs. Ozernoe — reservoir properties</div>
+          <svg class="chart" id="chart-fields" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">Paired values for both fields on a common normalised axis, with real units labelled. Gagarinskoe leads on pressure, permeability and porosity; Ozernoe on depth and column thickness. Thesis Table 3.1.</div>
+        </div>
+
+        <div class="viz-panel" id="viz-wells" data-render="production">
+          <div class="viz-title">Production response, Well 1 vs. Well 2</div>
+          <svg class="chart" id="chart-production" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">Circles are the values reported in the thesis: pre-frac rate, post-frac peak, and the end of the effective period. The curves between them show the decline behaviour described in §3.2.4 — closure under overburden for Well 1, sustained network flow for Well 2.</div>
+        </div>
+
+        <div class="viz-panel" id="viz-premium" data-render="premium">
+          <div class="viz-title">109 operations, split by realised geometry</div>
+          <svg class="chart" id="chart-premium" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">Field averages across all monitored treatments in both fields. Note the first pair: initial flow-rate gain is effectively equal. Every advantage complex geometry holds is in duration and cumulative recovery. Thesis Tables 3.3 &amp; 3.4.</div>
+        </div>
+
+        <div class="viz-panel" id="viz-wellx" data-render="wellx">
+          <div class="viz-title">Well X — reservoir and mechanical profile</div>
+          <svg class="chart" id="chart-wellx" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">Mineralogy favours fracturing; porosity and closure stress oppose it. Ranges show logged minimum to maximum along the horizontal section, with the arithmetic mean marked. Thesis §3.3.1 and Table 3-5.</div>
+        </div>
+
+        <div class="viz-panel" id="viz-stages" data-render="stages">
+          <div class="viz-title">Well X — 25-stage operating envelope</div>
+          <svg class="chart" id="chart-stages" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">Reported operating bands across the stage sequence, with the equipment pressure ceiling and the temporary-plugging window marked. Per-stage values are not published in the thesis, so bands and means are shown rather than reconstructed points. Thesis §3.3.2.1.</div>
+        </div>
+
+        <div class="viz-panel" id="viz-plugging" data-render="plugging">
+          <div class="viz-title">Temporary plugging — pressure response and event density</div>
+          <svg class="chart" id="chart-plugging" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">Left: reported operating-pressure rise for each diversion method. Right: relative micro-seismic event density across the stage sequence, showing the sparse early and late stages against the plugging window at stages 11–17. Thesis §3.3.2.4.</div>
+        </div>
+
+        <div class="viz-panel" id="viz-complexity" data-render="complexity">
+          <div class="viz-title">Complexity classification by grid coverage</div>
+          <svg class="chart" id="chart-complexity" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">Micro-fractures of similar orientation are connected, isolated ones discarded, and the effective grid is measured against the total event footprint (dashed hull). The three classes and their thresholds are those defined in Thesis §3.3.2.5.</div>
+        </div>
+
+        <div class="viz-panel" id="viz-conclusion" data-render="scorecard">
+          <div class="viz-title">What the evidence supports</div>
+          <svg class="chart" id="chart-scorecard" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">The three quantitative claims the thesis defends with field data, and the six operational recommendations that follow from them. Thesis Ch. 4.</div>
+        </div>
+
       </div>
 
-      <div class="viz-panel" id="viz-methodology">
-        <div class="viz-title">From Raw Signal to Fracture Interpretation</div>
-        <div class="viz-mount"><svg class="viz-svg" id="chart-methodology" viewBox="0 0 620 320"></svg></div>
-        <div class="viz-caption">Solid paths mark the core workflow; dashed paths mark supporting steps.</div>
-      </div>
-
-      <div class="viz-panel" id="viz-finding1">
-        <div class="viz-title">Fracture Complexity vs. Effective Duration</div>
-        <div class="viz-mount"><svg class="viz-svg" id="chart-finding1" viewBox="0 0 560 380"></svg></div>
-        <div class="viz-caption">Well 1 and Well 2 are real data points; surrounding points illustrate the broader field pattern described in §3.2.4.</div>
-      </div>
-
-      <div class="viz-panel" id="viz-finding2">
-        <div class="viz-title">ML Technique vs. Monitoring Task</div>
-        <div class="viz-mount"><svg class="viz-svg" id="chart-finding2" viewBox="0 0 620 340"></svg></div>
-        <div class="viz-caption">Darker cells indicate techniques with strong reported performance for that task, per the literature reviewed in Ch. 2.</div>
-      </div>
-
-      <div class="viz-panel" id="viz-bigpicture">
-        <div class="viz-title">Well 1 vs. Well 2 — Production Impact</div>
-        <div class="viz-mount"><svg class="viz-svg" id="chart-bigpicture" viewBox="0 0 560 420"></svg></div>
-        <div class="viz-caption">Actual field data from the Gagarinskoe field.</div>
-      </div>
-
-      <div class="viz-panel" id="viz-conclusion">
-        <div class="viz-title">Fracture Network Complexity by Well</div>
-        <div class="viz-mount"><svg class="viz-svg" id="chart-conclusion" viewBox="0 0 560 300"></svg></div>
-        <div class="viz-caption">≥85% coverage of the microseismic event footprint is classified as complex (Thesis §3.3.2.5).</div>
-      </div>
-
+      <div id="viz-resize-handle" aria-label="Drag to resize visualization"><div class="viz-resize-pill"></div></div>
     </div>
   </div>
 </div>
 
 <footer id="main-footer">
   <div class="footer-grid">
-    <div>
-      <div class="footer-label">Full Thesis</div>
-      <p><em>Optimizing Hydraulic Fracturing Through Micro-Seismic Monitoring for Asset Preservation and Value Enhancement</em></p>
+    <div class="footer-thesis">
+      <div class="footer-label">Full thesis</div>
+      <p>Optimizing Hydraulic Fracturing Through Micro-Seismic Monitoring for Asset Preservation and Value Enhancement</p>
     </div>
-    <div>
-      <p><strong>Research by:</strong> Abdiaziz Mohamed Abdi</p>
+    <div class="footer-meta">
+      <div class="footer-label">Details</div>
+      <p><strong>Author:</strong> Abdiaziz Mohamed Abdi</p>
+      <p><strong>Supervisor:</strong> Asst. Prof. Dr. Hilmi Dindar</p>
       <p><strong>Institution:</strong> Cyprus International University</p>
-      <p><strong>Program:</strong> MSc, Petroleum and Natural Gas Engineering</p>
+      <p><strong>Programme:</strong> MSc, Petroleum and Natural Gas Engineering</p>
+      <p><strong>Defended:</strong> 24 June 2025 · 86 pages</p>
     </div>
+  </div>
+  <div class="footer-bottom">
+    <p>Figures are redrawn from the thesis data. Where the underlying per-point values are not published, ranges and means are shown rather than reconstructed points — each caption says which.</p>
   </div>
 </footer>
 
 <script>
 (function () {
-  const d3s = d3;
-  const colors = { oxide: '#B5502D', oxideSoft: '#D97F5C', petrol: '#2E8B94', petrolSoft: '#5CB8C0', amber: '#E8A33D', ink: '#ECE6D8', inkDim: '#C9C2B2', inkMuted: '#8B9198', line: 'rgba(236,230,216,0.14)' };
+  'use strict';
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var DUR = reduced ? 0 : 1;
 
-  /* ---------- Hero waveform ---------- */
-  function drawHeroWave() {
-    const svg = d3s.select('#hero-wave');
-    const pts = [];
-    for (let x = 0; x <= 1000; x += 8) {
-      const n = Math.sin(x / 40) * 18 + Math.sin(x / 11) * (Math.random() * 6) * Math.exp(-Math.pow((x - 500) / 260, 2) * -1 + 1);
-      pts.push([x, 90 + Math.sin(x / 55) * 22 + (Math.random() - 0.5) * 10 * Math.sin(x / 9)]);
-    }
-    const line = d3s.line().x(d => d[0]).y(d => d[1]).curve(d3s.curveBasis);
-    const path = svg.append('path').attr('d', line(pts)).attr('fill', 'none').attr('stroke', colors.oxideSoft).attr('stroke-width', 1.4);
-    const len = path.node().getTotalLength();
-    path.attr('stroke-dasharray', len).attr('stroke-dashoffset', len)
-      .transition().duration(3200).ease(d3s.easeCubicOut).attr('stroke-dashoffset', 0);
-    svg.append('path').attr('d', line(pts.map(p => [p[0], p[1] + 14]))).attr('fill', 'none')
-      .attr('stroke', colors.petrolSoft).attr('stroke-width', 1).attr('opacity', 0.45);
+  /* ── colours resolve through CSS vars, so the theme toggle is free ── */
+  var C = {
+    accent: 'var(--accent)', accentSoft: 'var(--accent-soft)',
+    sec: 'var(--secondary)', secSoft: 'var(--secondary-soft)',
+    gold: 'var(--gold)', green: 'var(--green)',
+    ink: 'var(--ink)', inkLight: 'var(--ink-light)', muted: 'var(--ink-muted)',
+    grid: 'var(--grid)', border: 'var(--border)', paper: 'var(--paper-dark)'
+  };
+  var SANS = "'Inter', system-ui, sans-serif";
+
+  function txt(sel, x, y, s, opts) {
+    opts = opts || {};
+    return sel.append('text').attr('x', x).attr('y', y)
+      .attr('font-family', SANS)
+      .attr('font-size', opts.size || 11)
+      .attr('font-weight', opts.weight || 400)
+      .attr('text-anchor', opts.anchor || 'start')
+      .style('fill', opts.fill || C.muted)
+      .text(s);
+  }
+  function grid(g, scale, w, horizontal) {
+    var ticks = scale.ticks(5);
+    g.selectAll('.gl').data(ticks).enter().append('line')
+      .attr('x1', function (d) { return horizontal ? 0 : scale(d); })
+      .attr('x2', function (d) { return horizontal ? w : scale(d); })
+      .attr('y1', function (d) { return horizontal ? scale(d) : 0; })
+      .attr('y2', function (d) { return horizontal ? scale(d) : w; })
+      .style('stroke', C.grid).attr('stroke-dasharray', '3,3');
+  }
+  function grow(sel, attr, to, delay) {
+    if (!DUR) return sel.attr(attr, to);
+    return sel.transition().delay(delay || 0).duration(700).ease(d3.easeCubicOut).attr(attr, to);
+  }
+  function fadeIn(sel, delay) {
+    if (!DUR) return sel.attr('opacity', 1);
+    return sel.attr('opacity', 0).transition().delay(delay || 0).duration(450).attr('opacity', 1);
+  }
+  function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; var t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function arrowDefs(svg) {
+    var d = svg.append('defs');
+    [['ar-a', C.accent], ['ar-m', C.muted]].forEach(function (p) {
+      d.append('marker').attr('id', p[0]).attr('viewBox', '0 0 10 10')
+        .attr('refX', 9).attr('refY', 5).attr('markerWidth', 6).attr('markerHeight', 6)
+        .attr('orient', 'auto-start-reverse')
+        .append('path').attr('d', 'M0,0 L10,5 L0,10 z').style('fill', p[1]);
+    });
   }
 
-  /* ---------- Hero counters ---------- */
-  const heroStats = [
-    { target: 2, unit: '', label: 'Field Case Studies' },
-    { target: 25, unit: '', label: 'Fracturing Stages (Well X)' },
-    { target: 6, unit: '', label: 'ML Technique Families' },
-    { target: 18, unit: 'mo', label: 'Longest Sustained Effect' }
+  /* ═══════════ 01 · FRACTURE GROWTH ═══════════ */
+  function renderGrowth() {
+    var svg = d3.select('#chart-growth'); svg.selectAll('*').remove();
+    var m = { t: 26, r: 20, b: 44, l: 54 }, W = 660 - m.l - m.r, H = 430 - m.t - m.b;
+    var g = svg.append('g').attr('transform', 'translate(' + m.l + ',' + m.t + ')');
+    var x = d3.scaleLinear().domain([0, 160]).range([0, W]);
+    var y = d3.scaleLinear().domain([-110, 110]).range([H, 0]);
+
+    grid(g, y, W, true);
+    g.append('g').attr('transform', 'translate(0,' + H + ')').call(d3.axisBottom(x).ticks(6).tickFormat(function (d) { return d + '′'; }));
+    g.append('g').call(d3.axisLeft(y).ticks(6).tickFormat(function (d) { return Math.abs(d) + ' m'; }));
+    g.selectAll('.domain').style('stroke', C.border);
+    g.selectAll('.tick line').style('stroke', C.border);
+    g.selectAll('.tick text').style('fill', C.muted).attr('font-family', SANS).attr('font-size', 10);
+
+    txt(g, W / 2, H + 36, 'Pumping time (minutes)', { anchor: 'middle', size: 11 });
+    txt(g, 0, -10, 'Distance from wellbore, both wings', { size: 11, weight: 600, fill: C.inkLight });
+
+    // wellbore
+    g.append('line').attr('x1', 0).attr('x2', W).attr('y1', y(0)).attr('y2', y(0))
+      .style('stroke', C.inkLight).attr('stroke-width', 2);
+    txt(g, 4, y(0) - 7, 'wellbore', { size: 10, fill: C.inkLight, weight: 600 });
+
+    // sqrt(t) envelopes
+    var env = d3.range(0, 161, 4).map(function (t) { return { t: t, v: 8.1 * Math.sqrt(t) }; });
+    var lineUp = d3.line().x(function (d) { return x(d.t); }).y(function (d) { return y(d.v); }).curve(d3.curveMonotoneX);
+    var lineDn = d3.line().x(function (d) { return x(d.t); }).y(function (d) { return y(-d.v); }).curve(d3.curveMonotoneX);
+    [lineUp, lineDn].forEach(function (ln, i) {
+      var p = g.append('path').datum(env).attr('d', ln).attr('fill', 'none')
+        .style('stroke', C.muted).attr('stroke-width', 1.4).attr('stroke-dasharray', '6,4');
+      if (DUR) { var L = p.node().getTotalLength(); p.attr('stroke-dasharray', L).attr('stroke-dashoffset', L)
+        .transition().duration(1400).attr('stroke-dashoffset', 0).on('end', function () { d3.select(this).attr('stroke-dasharray', '6,4'); }); }
+    });
+    txt(g, x(150), y(8.1 * Math.sqrt(150)) - 10, '√t envelope', { anchor: 'end', size: 10, fill: C.muted, weight: 600 });
+
+    // events
+    var r = rng(20250624), pts = [];
+    for (var i = 0; i < 190; i++) {
+      var t = 4 + Math.pow(r(), 0.62) * 155;
+      var reach = 8.1 * Math.sqrt(t);
+      var frac = Math.pow(r(), 0.55);
+      var v = reach * frac * (r() < 0.5 ? -1 : 1);
+      pts.push({ t: t, v: v, tip: frac > 0.82 });
+    }
+    g.selectAll('.ev').data(pts).enter().append('circle')
+      .attr('cx', function (d) { return x(d.t); })
+      .attr('cy', function (d) { return y(d.v); })
+      .attr('r', 0)
+      .style('fill', function (d) { return d.tip ? C.green : C.sec; })
+      .attr('opacity', 0.72)
+      .transition().duration(DUR ? 500 : 0).delay(function (d, i) { return DUR ? i * 6 : 0; })
+      .attr('r', function (d) { return d.tip ? 3.6 : 3; });
+
+    var lg = g.append('g').attr('transform', 'translate(' + (W - 168) + ',6)');
+    [[C.green, 'Tip events'], [C.sec, 'Interior events']].forEach(function (p, i) {
+      lg.append('circle').attr('cx', 5).attr('cy', i * 17).attr('r', 4).style('fill', p[0]).attr('opacity', 0.8);
+      txt(lg, 15, i * 17 + 4, p[1], { size: 10.5 });
+    });
+  }
+
+  /* ═══════════ 02 · MAGNITUDE + ENERGY ═══════════ */
+  function renderMagnitude() {
+    var svg = d3.select('#chart-magnitude'); svg.selectAll('*').remove();
+    var W = 660, m = { l: 54, r: 24 }, w = W - m.l - m.r;
+    var g = svg.append('g').attr('transform', 'translate(' + m.l + ',44)');
+    var x = d3.scaleLinear().domain([-4.5, 3.5]).range([0, w]);
+
+    txt(g, 0, -22, 'Moment magnitude of induced events', { size: 11.5, weight: 700, fill: C.inkLight });
+
+    var bands = [
+      { a: -4, b: -1, c: C.accent, lab: 'Shale stimulation', y: 0 },
+      { a: -2, b: 2.5, c: C.gold, lab: 'Induced range reported in literature', y: 34 },
+      { a: -1, b: 1, c: C.sec, lab: 'Fault interaction (+1 to +2 magnitudes)', y: 68 }
+    ];
+    bands.forEach(function (b, i) {
+      var rect = g.append('rect').attr('x', x(b.a)).attr('y', b.y).attr('width', 0).attr('height', 20).attr('rx', 4)
+        .style('fill', b.c).attr('opacity', 0.34).style('stroke', b.c).attr('stroke-width', 1.2);
+      grow(rect, 'width', x(b.b) - x(b.a), i * 130);
+      txt(g, x(b.a) + 6, b.y + 14, b.lab, { size: 10.5, weight: 600, fill: C.inkLight });
+    });
+
+    // max observed marker
+    g.append('line').attr('x1', x(1)).attr('x2', x(1)).attr('y1', -6).attr('y2', 100)
+      .style('stroke', C.sec).attr('stroke-width', 2).attr('stroke-dasharray', '4,3');
+    txt(g, x(1) + 6, -8, 'Largest ever recorded: +1.0', { size: 10.5, weight: 700, fill: C.sec });
+
+    // felt threshold
+    g.append('rect').attr('x', x(2.5)).attr('y', -4).attr('width', x(3.5) - x(2.5)).attr('height', 106)
+      .style('fill', C.muted).attr('opacity', 0.13);
+    txt(g, x(3.5) - 4, 116, 'felt at surface', { anchor: 'end', size: 10, weight: 600 });
+
+    g.append('g').attr('transform', 'translate(0,100)').call(d3.axisBottom(x).ticks(8).tickFormat(function (d) { return d > 0 ? '+' + d : d; }));
+    g.selectAll('.domain,.tick line').style('stroke', C.border);
+    g.selectAll('.tick text').style('fill', C.muted).attr('font-family', SANS).attr('font-size', 10);
+
+    // ── energy comparison ──
+    var g2 = svg.append('g').attr('transform', 'translate(' + m.l + ',218)');
+    txt(g2, 0, -6, 'Energy budget of a single treatment (log scale, kJ)', { size: 11.5, weight: 700, fill: C.inkLight });
+    var xe = d3.scaleLog().domain([1e1, 1e9]).range([0, w]);
+    var rows = [
+      { lab: 'Detected micro-seismic energy released', v: 5e2, c: C.accent, note: '≈ hundreds of kJ' },
+      { lab: 'Energy injected during treatment', v: 4e8, c: C.sec, note: '≈ hundreds of millions of kJ' }
+    ];
+    rows.forEach(function (r0, i) {
+      var yy = 24 + i * 62;
+      txt(g2, 0, yy - 6, r0.lab, { size: 11, weight: 600, fill: C.inkLight });
+      var bar = g2.append('rect').attr('x', 0).attr('y', yy).attr('height', 22).attr('rx', 3).attr('width', 0).style('fill', r0.c).attr('opacity', 0.85);
+      grow(bar, 'width', xe(r0.v), 200 + i * 220);
+      txt(g2, xe(r0.v) + 8, yy + 16, r0.note, { size: 10.5, weight: 600, fill: r0.c });
+    });
+    g2.append('g').attr('transform', 'translate(0,148)').call(d3.axisBottom(xe).ticks(5, '~s'));
+    g2.selectAll('.domain,.tick line').style('stroke', C.border);
+    g2.selectAll('.tick text').style('fill', C.muted).attr('font-family', SANS).attr('font-size', 10);
+    txt(g2, w, 138, '≈ 1 part in 1,000,000', { anchor: 'end', size: 11, weight: 700, fill: C.gold });
+  }
+
+  /* ═══════════ 03 · DEPTH / CONTAINMENT ═══════════ */
+  function renderDepth() {
+    var svg = d3.select('#chart-depth'); svg.selectAll('*').remove();
+    var m = { t: 34, r: 24, b: 40, l: 66 }, W = 660 - m.l - m.r, H = 430 - m.t - m.b;
+    var g = svg.append('g').attr('transform', 'translate(' + m.l + ',' + m.t + ')');
+    var basins = [
+      { n: 'Marcellus', top: 1500, bot: 2600 },
+      { n: 'Barnett', top: 1900, bot: 2600 },
+      { n: 'Woodford', top: 1800, bot: 3400 },
+      { n: 'Muskwa / Evie', top: 1900, bot: 2700 },
+      { n: 'Eagle Ford', top: 2100, bot: 4300 },
+      { n: 'Haynesville', top: 3200, bot: 4300 }
+    ];
+    var y = d3.scaleLinear().domain([0, 4600]).range([0, H]);
+    var xb = d3.scaleBand().domain(basins.map(function (d) { return d.n; })).range([0, W]).padding(0.42);
+
+    g.append('g').call(d3.axisLeft(y).ticks(6).tickFormat(function (d) { return (d / 1000).toFixed(1) + ' km'; }));
+    g.selectAll('.domain,.tick line').style('stroke', C.border);
+    g.selectAll('.tick text').style('fill', C.muted).attr('font-family', SANS).attr('font-size', 10);
+
+    // ground + water zone
+    g.append('line').attr('x1', 0).attr('x2', W).attr('y1', y(0)).attr('y2', y(0)).style('stroke', C.inkLight).attr('stroke-width', 2);
+    txt(g, 0, -12, 'Ground surface', { size: 10.5, weight: 700, fill: C.inkLight });
+    g.append('rect').attr('x', 0).attr('y', y(0)).attr('width', W).attr('height', y(300) - y(0))
+      .style('fill', C.accent).attr('opacity', 0.2);
+    txt(g, W - 4, y(300) - 8, 'fresh-water wells (typically < 300 m)', { anchor: 'end', size: 10.5, weight: 700, fill: C.accent });
+
+    basins.forEach(function (b, i) {
+      var bar = g.append('rect').attr('x', xb(b.n)).attr('width', xb.bandwidth())
+        .attr('y', y(b.top)).attr('height', 0).attr('rx', 3)
+        .style('fill', C.sec).attr('opacity', 0.8);
+      grow(bar, 'height', y(b.bot) - y(b.top), i * 90);
+      // top / bottom ticks
+      g.append('line').attr('x1', xb(b.n) - 4).attr('x2', xb(b.n) + xb.bandwidth() + 4)
+        .attr('y1', y(b.top)).attr('y2', y(b.top)).style('stroke', C.secSoft).attr('stroke-width', 2);
+      txt(g, xb(b.n) + xb.bandwidth() / 2, H + 16, b.n, { anchor: 'middle', size: 10, weight: 600, fill: C.inkLight });
+    });
+
+    // separation annotation
+    var gapTop = y(300), gapBot = y(1500), cx = xb('Marcellus') + xb.bandwidth() / 2;
+    g.append('line').attr('x1', cx).attr('x2', cx).attr('y1', gapTop).attr('y2', gapBot)
+      .style('stroke', C.gold).attr('stroke-width', 1.6).attr('stroke-dasharray', '3,3');
+    txt(g, cx + 8, (gapTop + gapBot) / 2, '≥ 1.2 km of intact rock', { size: 10.5, weight: 700, fill: C.gold });
+    txt(g, 0, H + 34, 'Shallowest to deepest detected micro-seism per basin', { size: 10.5 });
+  }
+
+  /* ═══════════ 04 · DESIGN vs MEASURED ═══════════ */
+  function renderGap() {
+    var svg = d3.select('#chart-gap'); svg.selectAll('*').remove();
+    var m = { t: 40, r: 34, b: 56, l: 108 }, W = 660 - m.l - m.r, H = 430 - m.t - m.b;
+    var g = svg.append('g').attr('transform', 'translate(' + m.l + ',' + m.t + ')');
+    var x = d3.scaleLinear().domain([0, 420]).range([0, W]);
+    var rows = [
+      { n: 'Well 1', sub: 'simple, symmetric', design: 72, ms: 73, test: 75, oiip: '4.9% OIIP', band: null },
+      { n: 'Well 2', sub: 'complex network', design: 73, ms: 225, test: 382, oiip: '17.7% OIIP', band: [100, 350] }
+    ];
+    var yr = d3.scalePoint().domain(rows.map(function (d) { return d.n; })).range([46, H - 60]);
+
+    grid(g, x, H, false);
+    g.append('g').attr('transform', 'translate(0,' + H + ')').call(d3.axisBottom(x).ticks(6).tickFormat(function (d) { return d + ' m'; }));
+    g.selectAll('.domain,.tick line').style('stroke', C.border);
+    g.selectAll('.tick text').style('fill', C.muted).attr('font-family', SANS).attr('font-size', 10);
+    txt(g, W / 2, H + 38, 'Fracture half-length', { anchor: 'middle', size: 11 });
+
+    rows.forEach(function (r0, i) {
+      var yy = yr(r0.n);
+      txt(g, -12, yy - 2, r0.n, { anchor: 'end', size: 12.5, weight: 700, fill: C.ink });
+      txt(g, -12, yy + 13, r0.sub, { anchor: 'end', size: 10, fill: C.muted });
+
+      if (r0.band) {
+        var bd = g.append('rect').attr('x', x(r0.band[0])).attr('y', yy - 15).attr('height', 30).attr('rx', 4)
+          .attr('width', 0).style('fill', C.accent).attr('opacity', 0.16);
+        grow(bd, 'width', x(r0.band[1]) - x(r0.band[0]), 260);
+        txt(g, x(r0.band[0]) + 6, yy - 22, 'events across 100–350 m radius', { size: 10, weight: 600, fill: C.accent });
+      }
+
+      var lo = Math.min(r0.design, r0.test), hi = Math.max(r0.design, r0.test);
+      var conn = g.append('line').attr('x1', x(lo)).attr('x2', x(lo)).attr('y1', yy).attr('y2', yy)
+        .style('stroke', C.muted).attr('stroke-width', 2);
+      grow(conn, 'x2', x(hi), i * 160);
+
+      [['design', C.muted, 'Design'], ['ms', C.accent, 'Micro-seismic'], ['test', C.sec, 'Well test']].forEach(function (p, j) {
+        var v = r0[p[0]];
+        var c = g.append('circle').attr('cx', x(v)).attr('cy', yy).attr('r', 0).style('fill', p[1]);
+        grow(c, 'r', 7.5, i * 160 + j * 110);
+        txt(g, x(v), yy + (j === 1 ? 30 : -16), v + ' m', { anchor: 'middle', size: 10.5, weight: 700, fill: p[1] });
+      });
+
+      txt(g, W, yy + 4, r0.oiip, { anchor: 'end', size: 12, weight: 700, fill: C.gold });
+    });
+
+    // ratio callout
+    txt(g, 0, H - 14, 'Well 2 measured 5.2× its designed half-length', { size: 11.5, weight: 700, fill: C.sec });
+
+    var lg = svg.append('g').attr('transform', 'translate(' + m.l + ',22)');
+    [[C.muted, 'Pre-job design'], [C.accent, 'Micro-seismic'], [C.sec, 'Well test']].forEach(function (p, i) {
+      lg.append('circle').attr('cx', i * 132 + 5).attr('cy', 0).attr('r', 5).style('fill', p[0]);
+      txt(lg, i * 132 + 15, 4, p[1], { size: 10.5 });
+    });
+  }
+
+  /* ═══════════ 05 · WORKFLOW ═══════════ */
+  function renderWorkflow() {
+    var svg = d3.select('#chart-workflow'); svg.selectAll('*').remove();
+    arrowDefs(svg);
+    var g = svg.append('g').attr('transform', 'translate(24,34)');
+    var N = {
+      raw:   { l: 'Raw micro-seismic\nrecording', x: 0,   y: 76,  w: 128, h: 52 },
+      noise: { l: 'Noise classification\n& suppression', x: 164, y: 20,  w: 132, h: 52, ml: 'CNN · autoencoder' },
+      det:   { l: 'Event detection\n& phase picking', x: 164, y: 132, w: 132, h: 52, ml: 'CNN · RNN' },
+      loc:   { l: 'Localisation', x: 332, y: 20,  w: 124, h: 46, ml: 'PINN · MDN' },
+      src:   { l: 'Source mechanism\n& moment tensor', x: 332, y: 92, w: 124, h: 52, ml: 'Bayesian' },
+      clu:   { l: 'Cluster analysis', x: 332, y: 176, w: 124, h: 46, ml: 'GNN · DBSCAN' },
+      net:   { l: 'Fracture network\ninterpretation', x: 492, y: 92, w: 128, h: 56, accent: true },
+      well:  { l: 'Well test\n(storativity ratio ω)', x: 332, y: 262, w: 124, h: 52, cool: true },
+      out:   { l: 'Stimulated volume\n& treatment decision', x: 492, y: 232, w: 128, h: 56, accent: true }
+    };
+    var E = [
+      ['raw', 'noise', 1], ['raw', 'det', 1], ['noise', 'det', 0],
+      ['det', 'loc', 1], ['det', 'src', 0], ['loc', 'src', 0], ['loc', 'clu', 1],
+      ['src', 'clu', 0], ['clu', 'net', 1], ['net', 'out', 1], ['well', 'out', 0], ['well', 'net', 0]
+    ];
+    function cx(k) { return N[k].x + N[k].w / 2; }
+    function cy(k) { return N[k].y + N[k].h / 2; }
+
+    E.forEach(function (e, i) {
+      var x1 = cx(e[0]), y1 = cy(e[0]), x2 = cx(e[1]), y2 = cy(e[1]);
+      var dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy);
+      var pad0 = N[e[0]].w / 2 + 6, pad1 = N[e[1]].w / 2 + 12;
+      var sx = x1 + dx / len * Math.min(pad0, len / 2), sy = y1 + dy / len * Math.min(pad0, len / 2);
+      var ex = x2 - dx / len * Math.min(pad1, len / 2), ey = y2 - dy / len * Math.min(pad1, len / 2);
+      var ln = g.append('line').attr('x1', sx).attr('y1', sy).attr('x2', sx).attr('y2', sy)
+        .style('stroke', e[2] ? C.accent : C.muted).attr('stroke-width', e[2] ? 2 : 1.3)
+        .attr('stroke-dasharray', e[2] ? null : '4,3')
+        .attr('marker-end', 'url(#' + (e[2] ? 'ar-a' : 'ar-m') + ')');
+      if (DUR) ln.transition().delay(i * 70).duration(520).attr('x2', ex).attr('y2', ey);
+      else ln.attr('x2', ex).attr('y2', ey);
+    });
+
+    Object.keys(N).forEach(function (k, i) {
+      var n = N[k];
+      var ng = g.append('g').attr('transform', 'translate(' + n.x + ',' + n.y + ')');
+      fadeIn(ng, i * 60);
+      ng.append('rect').attr('width', n.w).attr('height', n.h).attr('rx', 7)
+        .style('fill', n.accent ? C.sec : n.cool ? C.gold : C.accent)
+        .attr('opacity', n.accent ? 0.92 : n.cool ? 0.85 : 0.16)
+        .style('stroke', n.accent ? C.sec : n.cool ? C.gold : C.accent).attr('stroke-width', 1.4);
+      var lines = n.l.split('\n');
+      lines.forEach(function (L, j) {
+        ng.append('text').attr('x', n.w / 2).attr('text-anchor', 'middle')
+          .attr('y', n.h / 2 + (j - (lines.length - 1) / 2) * 13.5 + 4.5)
+          .attr('font-family', SANS).attr('font-size', 10.5).attr('font-weight', 600)
+          .style('fill', (n.accent || n.cool) ? 'var(--paper)' : C.ink).text(L);
+      });
+      if (n.ml) txt(ng, n.w / 2, n.h + 12, n.ml, { anchor: 'middle', size: 9.5, weight: 600, fill: C.muted });
+    });
+
+    var lg = svg.append('g').attr('transform', 'translate(24,14)');
+    lg.append('line').attr('x1', 0).attr('x2', 22).attr('y1', 0).attr('y2', 0).style('stroke', C.accent).attr('stroke-width', 2);
+    txt(lg, 28, 4, 'Core path', { size: 10.5 });
+    lg.append('line').attr('x1', 112).attr('x2', 134).attr('y1', 0).attr('y2', 0).style('stroke', C.muted).attr('stroke-width', 1.3).attr('stroke-dasharray', '4,3');
+    txt(lg, 140, 4, 'Supporting input', { size: 10.5 });
+    txt(lg, 268, 4, 'grey text = model family applied', { size: 10.5, fill: C.muted });
+  }
+
+  /* ═══════════ 06 · ML MATRIX ═══════════ */
+  function renderMatrix() {
+    var svg = d3.select('#chart-matrix'); svg.selectAll('*').remove();
+    var tasks = ['Noise suppression', 'Wavefield reconstruction', 'Event detection & picking', 'Localisation', 'Source mechanism', 'Cluster analysis', 'Earthquake prediction'];
+    var techs = ['CNN', 'RNN', 'PINN', 'GNN / AE', 'Bayes / MDN'];
+    var S = {
+      'Noise suppression':          [2, 0, 0, 2, 0],
+      'Wavefield reconstruction':   [1, 1, 1, 2, 0],
+      'Event detection & picking':  [2, 1, 0, 0, 0],
+      'Localisation':               [1, 0, 2, 0, 1],
+      'Source mechanism':           [1, 0, 2, 0, 2],
+      'Cluster analysis':           [0, 0, 0, 2, 1],
+      'Earthquake prediction':      [1, 2, 0, 0, 1]
+    };
+    var m = { t: 74, l: 176 }, cw = 84, ch = 42;
+    var g = svg.append('g').attr('transform', 'translate(' + m.l + ',' + m.t + ')');
+
+    techs.forEach(function (t, i) {
+      txt(g, i * cw + cw / 2, -14, t, { anchor: 'middle', size: 11, weight: 700, fill: C.inkLight });
+    });
+    tasks.forEach(function (task, r) {
+      txt(g, -14, r * ch + ch / 2 + 4, task, { anchor: 'end', size: 11, weight: 600, fill: C.inkLight });
+      techs.forEach(function (tech, c) {
+        var s = S[task][c];
+        var rect = g.append('rect').attr('x', c * cw + 3).attr('y', r * ch + 3)
+          .attr('width', cw - 6).attr('height', ch - 6).attr('rx', 5)
+          .style('fill', s === 2 ? C.sec : s === 1 ? C.accent : C.muted)
+          .style('stroke', C.border)
+          .attr('opacity', 0);
+        var target = s === 2 ? 0.88 : s === 1 ? 0.34 : 0.07;
+        if (DUR) rect.transition().delay((r * techs.length + c) * 22).duration(320).attr('opacity', target);
+        else rect.attr('opacity', target);
+        if (s === 2) txt(g, c * cw + cw / 2, r * ch + ch / 2 + 4, 'primary', { anchor: 'middle', size: 9.5, weight: 700, fill: 'var(--paper)' });
+      });
+    });
+
+    var lg = svg.append('g').attr('transform', 'translate(176,' + (m.t + tasks.length * ch + 30) + ')');
+    [[C.sec, 0.88, 'Primary architecture'], [C.accent, 0.34, 'Secondary use'], [C.muted, 0.07, 'Not reported']].forEach(function (p, i) {
+      lg.append('rect').attr('x', i * 148).attr('y', -10).attr('width', 22).attr('height', 12).attr('rx', 3).style('fill', p[0]).attr('opacity', p[1]);
+      txt(lg, i * 148 + 28, 0, p[2], { size: 10.5 });
+    });
+  }
+
+  /* ═══════════ 07 · FIELD COMPARISON ═══════════ */
+  function renderFields() {
+    var svg = d3.select('#chart-fields'); svg.selectAll('*').remove();
+    var params = [
+      { n: 'Reservoir depth', a: 1778.3, b: 1997, u: 'm', max: 2100 },
+      { n: 'Initial pressure', a: 20.7, b: 18.2, u: 'MPa', max: 24 },
+      { n: 'Temperature', a: 33, b: 31, u: '°C', max: 38 },
+      { n: 'Bubble-point pressure', a: 14.4, b: 11.0, u: 'MPa', max: 17 },
+      { n: 'Gas–oil ratio', a: 185, b: 141, u: 'm³/m³', max: 210 },
+      { n: 'Oil column thickness', a: 12.3, b: 19.8, u: 'm', max: 23 },
+      { n: 'Permeability', a: 39, b: 31, u: 'mD', max: 45 },
+      { n: 'Porosity', a: 11, b: 9, u: '%', max: 13 }
+    ];
+    var m = { t: 52, r: 96, b: 34, l: 160 }, W = 660 - m.l - m.r, H = 430 - m.t - m.b;
+    var g = svg.append('g').attr('transform', 'translate(' + m.l + ',' + m.t + ')');
+    var yb = d3.scaleBand().domain(params.map(function (d) { return d.n; })).range([0, H]).padding(0.38);
+
+    params.forEach(function (p, i) {
+      var yy = yb(p.n), h = yb.bandwidth(), x = d3.scaleLinear().domain([0, p.max]).range([0, W]);
+      txt(g, -12, yy + h / 2 + 4, p.n, { anchor: 'end', size: 11, weight: 600, fill: C.inkLight });
+      g.append('line').attr('x1', 0).attr('x2', W).attr('y1', yy + h / 2).attr('y2', yy + h / 2).style('stroke', C.grid);
+
+      [['a', C.accent], ['b', C.sec]].forEach(function (q, j) {
+        var v = p[q[0]];
+        var c = g.append('circle').attr('cx', 0).attr('cy', yy + h / 2).attr('r', 6).style('fill', q[1]).attr('opacity', 0.9);
+        grow(c, 'cx', x(v), i * 45 + j * 60);
+      });
+      var lo = Math.min(p.a, p.b), hi = Math.max(p.a, p.b);
+      var seg = g.append('line').attr('x1', x(lo)).attr('x2', x(lo)).attr('y1', yy + h / 2).attr('y2', yy + h / 2)
+        .style('stroke', C.inkLight).attr('stroke-width', 2).attr('opacity', 0.45);
+      grow(seg, 'x2', x(hi), i * 45);
+      txt(g, W + 10, yy + h / 2 + 4, p.a + ' / ' + p.b + ' ' + p.u, { size: 10.5, weight: 600, fill: C.muted });
+    });
+
+    var lg = svg.append('g').attr('transform', 'translate(' + m.l + ',26)');
+    [[C.accent, 'Gagarinskoe'], [C.sec, 'Ozernoe']].forEach(function (p, i) {
+      lg.append('circle').attr('cx', i * 150 + 6).attr('cy', 0).attr('r', 6).style('fill', p[0]);
+      txt(lg, i * 150 + 18, 4, p[1], { size: 11.5, weight: 700, fill: C.inkLight });
+    });
+    txt(svg.append('g'), 640, 424, 'Bars share a row-specific axis; values labelled at right', { anchor: 'end', size: 9.5 });
+  }
+
+  /* ═══════════ 08 · PRODUCTION CURVES ═══════════ */
+  function renderProduction() {
+    var svg = d3.select('#chart-production'); svg.selectAll('*').remove();
+    var m = { t: 34, r: 122, b: 50, l: 56 }, W = 660 - m.l - m.r, H = 430 - m.t - m.b;
+    var g = svg.append('g').attr('transform', 'translate(' + m.l + ',' + m.t + ')');
+    var x = d3.scaleLinear().domain([-2, 21]).range([0, W]);
+    var y = d3.scaleLinear().domain([0, 14]).range([H, 0]);
+
+    grid(g, y, W, true);
+    g.append('g').attr('transform', 'translate(0,' + H + ')').call(d3.axisBottom(x).ticks(8).tickFormat(function (d) { return d < 0 ? '' : d; }));
+    g.append('g').call(d3.axisLeft(y).ticks(7));
+    g.selectAll('.domain,.tick line').style('stroke', C.border);
+    g.selectAll('.tick text').style('fill', C.muted).attr('font-family', SANS).attr('font-size', 10);
+    txt(g, W / 2, H + 38, 'Months after treatment', { anchor: 'middle', size: 11 });
+    txt(g, -44, -14, 'Flow rate (tonnes/day)', { size: 11, weight: 600, fill: C.inkLight });
+
+    g.append('line').attr('x1', x(0)).attr('x2', x(0)).attr('y1', 0).attr('y2', H)
+      .style('stroke', C.gold).attr('stroke-width', 1.6).attr('stroke-dasharray', '4,3');
+    txt(g, x(0) + 6, 12, 'fracturing', { size: 10, weight: 700, fill: C.gold });
+
+    var wells = [
+      { n: 'Well 1 — simple fracture', c: C.accent, pre: 1.4, peak: 9.0, eff: 11, tail: 1.6, decay: 1.5 },
+      { n: 'Well 2 — complex network', c: C.sec, pre: 2.0, peak: 12.5, eff: 18, tail: 6.2, decay: 5.0 }
+    ];
+    wells.forEach(function (w, wi) {
+      var pts = [{ t: -2, v: w.pre }, { t: -0.2, v: w.pre }];
+      for (var t = 0; t <= 20.5; t += 0.4) {
+        var v;
+        if (t < 0.5) v = w.pre + (w.peak - w.pre) * (t / 0.5);
+        else {
+          var f = (t - 0.5) / (w.eff - 0.5);
+          var e = Math.pow(Math.max(0, Math.min(1, f)), w.decay);
+          v = w.peak - (w.peak - w.tail) * e;
+          if (t > w.eff) v = w.tail - (w.tail - w.pre) * Math.min(1, (t - w.eff) / 2.5);
+        }
+        pts.push({ t: t, v: Math.max(w.pre * 0.95, v) });
+      }
+      var ln = d3.line().x(function (d) { return x(d.t); }).y(function (d) { return y(d.v); }).curve(d3.curveMonotoneX);
+      var ar = d3.area().x(function (d) { return x(d.t); }).y0(y(0)).y1(function (d) { return y(d.v); }).curve(d3.curveMonotoneX);
+      g.append('path').datum(pts).attr('d', ar).style('fill', w.c).attr('opacity', 0.09);
+      var p = g.append('path').datum(pts).attr('d', ln).attr('fill', 'none').style('stroke', w.c).attr('stroke-width', 2.6);
+      if (DUR) { var L = p.node().getTotalLength(); p.attr('stroke-dasharray', L).attr('stroke-dashoffset', L)
+        .transition().delay(wi * 260).duration(1500).ease(d3.easeCubicOut).attr('stroke-dashoffset', 0); }
+
+      // reported anchor points
+      [[-1, w.pre, w.pre + ' t/d pre-frac'], [0.5, w.peak, w.peak + ' t/d peak'], [w.eff, w.tail, w.eff + ' months']].forEach(function (a, j) {
+        var c = g.append('circle').attr('cx', x(a[0])).attr('cy', y(a[1])).attr('r', 0)
+          .style('fill', 'var(--paper-dark)').style('stroke', w.c).attr('stroke-width', 2.4);
+        grow(c, 'r', 5.5, 900 + wi * 200 + j * 130);
+        if (j === 1) txt(g, x(a[0]) + 9, y(a[1]) - 8, a[2], { size: 10.5, weight: 700, fill: w.c });
+        if (j === 2) txt(g, x(a[0]), y(a[1]) - 14, a[2], { anchor: 'middle', size: 10.5, weight: 700, fill: w.c });
+      });
+      txt(g, W + 10, y(w.peak) - 4 + wi * 4, w.n.split(' — ')[0], { size: 11.5, weight: 700, fill: w.c });
+      txt(g, W + 10, y(w.peak) + 11 + wi * 4, w.n.split(' — ')[1], { size: 10, fill: C.muted });
+    });
+  }
+
+  /* ═══════════ 09 · COMPLEXITY PREMIUM ═══════════ */
+  function renderPremium() {
+    var svg = d3.select('#chart-premium'); svg.selectAll('*').remove();
+    var m = { t: 60, r: 30, b: 40, l: 56 };
+    var metrics = [
+      { n: 'Flow-rate gain', s: 12.0, c: 12.2, u: 't/day', max: 14, note: 'equal' },
+      { n: 'Additional oil recovered', s: 6.94, c: 13.18, u: 'thousand t', max: 15, note: '1.9×' },
+      { n: 'Effective duration', s: 127.0, c: 311.2, u: 'days', max: 340, note: '2.45×' }
+    ];
+    var W = 660 - m.l - m.r;
+    var colW = W / 3;
+    var g = svg.append('g').attr('transform', 'translate(' + m.l + ',' + m.t + ')');
+    var H = 210;
+
+    metrics.forEach(function (mt, i) {
+      var gx = g.append('g').attr('transform', 'translate(' + (i * colW) + ',0)');
+      var y = d3.scaleLinear().domain([0, mt.max]).range([H, 0]);
+      var bw = 46;
+      txt(gx, colW / 2 - 12, -30, mt.n, { anchor: 'middle', size: 11.5, weight: 700, fill: C.inkLight });
+      txt(gx, colW / 2 - 12, -15, mt.u, { anchor: 'middle', size: 10, fill: C.muted });
+
+      [['s', C.accent, 'Simple'], ['c', C.sec, 'Complex']].forEach(function (p, j) {
+        var v = mt[p[0]], xx = colW / 2 - 12 + (j === 0 ? -bw - 8 : 8) ;
+        var bar = gx.append('rect').attr('x', xx).attr('y', H).attr('width', bw).attr('height', 0).attr('rx', 4)
+          .style('fill', p[1]).attr('opacity', 0.88);
+        grow(bar, 'y', y(v), i * 130 + j * 90);
+        grow(gx.append('rect').attr('x', xx).attr('y', y(v)).attr('width', bw).attr('height', 0).attr('opacity', 0), 'height', 0, 0);
+        if (DUR) bar.transition().delay(i * 130 + j * 90).duration(700).attr('height', H - y(v));
+        else bar.attr('height', H - y(v));
+        txt(gx, xx + bw / 2, y(v) - 7, String(v), { anchor: 'middle', size: 11.5, weight: 700, fill: p[1] });
+        txt(gx, xx + bw / 2, H + 16, p[2], { anchor: 'middle', size: 10, weight: 600, fill: C.muted });
+      });
+
+      txt(gx, colW / 2 - 12, H + 38, mt.note, { anchor: 'middle', size: 12.5, weight: 800, fill: mt.note === 'equal' ? C.muted : C.gold });
+      gx.append('line').attr('x1', 0).attr('x2', 0).attr('y1', -44).attr('y2', H + 44).style('stroke', C.grid);
+    });
+
+    // field split
+    var g2 = svg.append('g').attr('transform', 'translate(' + m.l + ',352)');
+    txt(g2, 0, -14, 'Operations analysed, by realised geometry', { size: 11, weight: 700, fill: C.inkLight });
+    var fields = [{ n: 'Gagarinskoe', s: 11, c: 17 }, { n: 'Ozernoe', s: 24, c: 57 }];
+    var xs = d3.scaleLinear().domain([0, 81]).range([0, W - 130]);
+    fields.forEach(function (f, i) {
+      var yy = i * 26;
+      txt(g2, 0, yy + 12, f.n, { size: 10.5, weight: 600, fill: C.inkLight });
+      var b1 = g2.append('rect').attr('x', 92).attr('y', yy).attr('height', 15).attr('rx', 3).attr('width', 0).style('fill', C.accent).attr('opacity', 0.85);
+      grow(b1, 'width', xs(f.s), 400 + i * 120);
+      var b2 = g2.append('rect').attr('x', 92 + xs(f.s) + 2).attr('y', yy).attr('height', 15).attr('rx', 3).attr('width', 0).style('fill', C.sec).attr('opacity', 0.85);
+      grow(b2, 'width', xs(f.c), 480 + i * 120);
+      txt(g2, 92 + xs(f.s + f.c) + 12, yy + 12, f.s + ' simple · ' + f.c + ' complex', { size: 10, weight: 600, fill: C.muted });
+    });
+  }
+
+  /* ═══════════ 10 · WELL X PROFILE ═══════════ */
+  function renderWellX() {
+    var svg = d3.select('#chart-wellx'); svg.selectAll('*').remove();
+    var g = svg.append('g').attr('transform', 'translate(56,42)');
+    var W = 548;
+
+    // mineral stacked bar
+    txt(g, 0, -16, 'Mineral composition (XRD + log interpretation)', { size: 11.5, weight: 700, fill: C.inkLight });
+    var mins = [
+      { n: 'Silica', v: 46.49, c: C.accent },
+      { n: 'Calcium', v: 39.64, c: C.sec },
+      { n: 'Other', v: 9.59, c: C.muted },
+      { n: 'Clay', v: 4.28, c: C.gold }
+    ];
+    var xm = d3.scaleLinear().domain([0, 100]).range([0, W]), acc = 0;
+    mins.forEach(function (mn, i) {
+      var st = acc; acc += mn.v;
+      var r0 = g.append('rect').attr('x', xm(st)).attr('y', 0).attr('height', 30).attr('width', 0)
+        .style('fill', mn.c).attr('opacity', 0.85);
+      grow(r0, 'width', xm(mn.v), i * 100);
+      if (mn.v > 8) {
+        txt(g, xm(st) + xm(mn.v) / 2, 19, mn.n + ' ' + mn.v + '%', { anchor: 'middle', size: 10.5, weight: 700, fill: 'var(--paper)' });
+      } else {
+        txt(g, xm(st) + xm(mn.v) / 2, -4, mn.n + ' ' + mn.v + '%', { anchor: 'middle', size: 10, weight: 700, fill: mn.c });
+      }
+    });
+    txt(g, 0, 48, 'Brittle minerals > 80% · clay < 20% → favourable for network formation', { size: 10.5, fill: C.green, weight: 600 });
+
+    // range rows
+    var rows = [
+      { n: 'Porosity', lo: 0.62, hi: 4.93, mean: 2.61, max: 6, u: '%', c: C.sec },
+      { n: 'Total gas content', lo: 0.45, hi: 11.16, mean: 5.14, max: 12, u: 'm³/t', c: C.accent },
+      { n: 'Free gas content', lo: 0.001, hi: 7.34, mean: 3.55, max: 12, u: 'm³/t', c: C.accentSoft }
+    ];
+    var gr = g.append('g').attr('transform', 'translate(0,88)');
+    txt(gr, 0, -6, 'Logged range along the 1,235 m horizontal section', { size: 11.5, weight: 700, fill: C.inkLight });
+    rows.forEach(function (r0, i) {
+      var yy = 22 + i * 46, x = d3.scaleLinear().domain([0, r0.max]).range([0, W - 110]);
+      txt(gr, 0, yy + 4, r0.n, { size: 10.5, weight: 600, fill: C.inkLight });
+      var track = gr.append('g').attr('transform', 'translate(150,0)');
+      track.append('line').attr('x1', 0).attr('x2', W - 110).attr('y1', yy).attr('y2', yy).style('stroke', C.grid).attr('stroke-width', 6).attr('stroke-linecap', 'round');
+      var band = track.append('line').attr('x1', x(r0.lo)).attr('x2', x(r0.lo)).attr('y1', yy).attr('y2', yy)
+        .style('stroke', r0.c).attr('stroke-width', 6).attr('opacity', 0.45).attr('stroke-linecap', 'round');
+      grow(band, 'x2', x(r0.hi), i * 120);
+      var mk = track.append('circle').attr('cx', x(r0.mean)).attr('cy', yy).attr('r', 0).style('fill', r0.c);
+      grow(mk, 'r', 6, i * 120 + 200);
+      txt(track, x(r0.mean), yy - 12, 'mean ' + r0.mean, { anchor: 'middle', size: 10, weight: 700, fill: r0.c });
+      txt(track, W - 104, yy + 4, r0.lo + '–' + r0.hi + ' ' + r0.u, { size: 10, fill: C.muted });
+    });
+    txt(gr, 150, 158, '71.58% of total gas is free gas — the fraction that delivers rate after fracturing', { size: 10.5, weight: 600, fill: C.green });
+
+    // mechanics chips
+    var gm = g.append('g').attr('transform', 'translate(0,280)');
+    txt(gm, 0, -6, 'Rock mechanics and in-situ stress', { size: 11.5, weight: 700, fill: C.inkLight });
+    var chips = [
+      ['96 MPa', 'closure stress', C.sec], ['13.12 MPa', 'cohesion', C.accent],
+      ['55.76°', 'friction angle', C.accent], ['12.47 MPa', 'tensile strength', C.accent],
+      ['0.77', 'MPa·√m toughness', C.gold]
+    ];
+    chips.forEach(function (c0, i) {
+      var cw = 106, gx = gm.append('g').attr('transform', 'translate(' + (i * (cw + 6)) + ',12)');
+      fadeIn(gx, 300 + i * 70);
+      gx.append('rect').attr('width', cw).attr('height', 46).attr('rx', 6)
+        .style('fill', c0[2]).attr('opacity', 0.13).style('stroke', c0[2]).attr('stroke-width', 1.1);
+      txt(gx, cw / 2, 21, c0[0], { anchor: 'middle', size: 13, weight: 800, fill: c0[2] });
+      txt(gx, cw / 2, 36, c0[1], { anchor: 'middle', size: 9, weight: 600, fill: C.muted });
+    });
+  }
+
+  /* ═══════════ 11 · 25 STAGES ═══════════ */
+  function renderStages() {
+    var svg = d3.select('#chart-stages'); svg.selectAll('*').remove();
+    var m = { t: 40, r: 116, b: 44, l: 56 }, W = 660 - m.l - m.r, H = 430 - m.t - m.b;
+    var g = svg.append('g').attr('transform', 'translate(' + m.l + ',' + m.t + ')');
+    var x = d3.scaleLinear().domain([1, 25]).range([0, W]);
+
+    g.append('g').attr('transform', 'translate(0,' + H + ')').call(d3.axisBottom(x).ticks(12).tickFormat(function (d) { return d; }));
+    g.selectAll('.domain,.tick line').style('stroke', C.border);
+    g.selectAll('.tick text').style('fill', C.muted).attr('font-family', SANS).attr('font-size', 10);
+    txt(g, W / 2, H + 36, 'Stage number (25 stages × ≈ 45 m)', { anchor: 'middle', size: 11 });
+
+    // plugging window
+    var pw = g.append('rect').attr('x', x(11)).attr('y', -18).attr('width', x(17) - x(11)).attr('height', H + 18)
+      .style('fill', C.gold).attr('opacity', 0.11);
+    txt(g, (x(11) + x(17)) / 2, -24, 'temporary plugging · stages 11–17', { anchor: 'middle', size: 10, weight: 700, fill: C.gold });
+
+    // panel 1: wellhead pressure band
+    var yP = d3.scaleLinear().domain([90, 118]).range([H * 0.44, 6]);
+    var band = g.append('rect').attr('x', 0).attr('y', yP(112)).attr('width', 0).attr('height', yP(96) - yP(112)).attr('rx', 3)
+      .style('fill', C.sec).attr('opacity', 0.28);
+    grow(band, 'width', W, 0);
+    g.append('line').attr('x1', 0).attr('x2', W).attr('y1', yP(112)).attr('y2', yP(112)).style('stroke', C.sec).attr('stroke-width', 1.6).attr('stroke-dasharray', '5,3');
+    txt(g, W + 8, yP(112) + 4, '112 MPa ceiling', { size: 10, weight: 700, fill: C.sec });
+    txt(g, W + 8, yP(96) + 4, '96 MPa floor', { size: 10, weight: 700, fill: C.muted });
+    txt(g, 4, yP(96) + 20, 'Wellhead pressure ran hard against the equipment limit', { size: 10.5, weight: 600, fill: C.inkLight });
+    txt(g, -46, yP(112) - 12, 'Pressure', { size: 11, weight: 700, fill: C.inkLight });
+
+    // panel 2: proppant intensity band + mean
+    var base = H * 0.60;
+    var yQ = d3.scaleLinear().domain([1.2, 3.6]).range([H - 12, base]);
+    var band2 = g.append('rect').attr('x', 0).attr('y', yQ(3.4)).attr('width', 0).attr('height', yQ(1.6) - yQ(3.4)).attr('rx', 3)
+      .style('fill', C.accent).attr('opacity', 0.24);
+    grow(band2, 'width', W, 180);
+    g.append('line').attr('x1', 0).attr('x2', W).attr('y1', yQ(2.4)).attr('y2', yQ(2.4)).style('stroke', C.accent).attr('stroke-width', 2);
+    txt(g, W + 8, yQ(2.4) + 4, 'mean 2.4', { size: 10, weight: 700, fill: C.accent });
+    txt(g, W + 8, yQ(3.4) + 4, '3.4 m³/m', { size: 10, fill: C.muted });
+    txt(g, W + 8, yQ(1.6) + 4, '1.6 m³/m', { size: 10, fill: C.muted });
+    g.append('line').attr('x1', 0).attr('x2', W).attr('y1', yQ(2.5)).attr('y2', yQ(2.5))
+      .style('stroke', C.gold).attr('stroke-width', 1.4).attr('stroke-dasharray', '4,3');
+    txt(g, 4, yQ(2.5) - 8, 'design target 2.5 m³/m', { size: 10, weight: 600, fill: C.gold });
+    txt(g, -46, base - 10, 'Proppant', { size: 11, weight: 700, fill: C.inkLight });
+
+    // totals strip
+    var gs = svg.append('g').attr('transform', 'translate(56,392)');
+    [['2,940 m³', 'total proppant'], ['55 m³/m', 'fluid intensity'], ['12–16 m³/min', 'pump rate'], ['154–478 m', 'fracture length']].forEach(function (p, i) {
+      var gx = gs.append('g').attr('transform', 'translate(' + i * 132 + ',0)');
+      fadeIn(gx, 400 + i * 80);
+      txt(gx, 0, 0, p[0], { size: 13, weight: 800, fill: C.inkLight });
+      txt(gx, 0, 15, p[1], { size: 9.5, weight: 600, fill: C.muted });
+    });
+  }
+
+  /* ═══════════ 12 · PLUGGING ═══════════ */
+  function renderPlugging() {
+    var svg = d3.select('#chart-plugging'); svg.selectAll('*').remove();
+
+    // left: pressure rise
+    var g = svg.append('g').attr('transform', 'translate(56,54)');
+    txt(g, 0, -18, 'Operating-pressure rise after diversion', { size: 11.5, weight: 700, fill: C.inkLight });
+    var x = d3.scaleLinear().domain([0, 7]).range([0, 210]);
+    var meth = [
+      { n: 'Plugging balls', lo: 1.32, hi: 5.5, c: C.sec },
+      { n: 'Particles', lo: 0.5, hi: 6.33, c: C.accent }
+    ];
+    meth.forEach(function (mm, i) {
+      var yy = 26 + i * 62;
+      txt(g, 0, yy - 8, mm.n, { size: 11, weight: 600, fill: C.inkLight });
+      g.append('line').attr('x1', 0).attr('x2', 210).attr('y1', yy + 8).attr('y2', yy + 8).style('stroke', C.grid).attr('stroke-width', 7).attr('stroke-linecap', 'round');
+      var b = g.append('line').attr('x1', x(mm.lo)).attr('x2', x(mm.lo)).attr('y1', yy + 8).attr('y2', yy + 8)
+        .style('stroke', mm.c).attr('stroke-width', 7).attr('stroke-linecap', 'round').attr('opacity', 0.85);
+      grow(b, 'x2', x(mm.hi), i * 200);
+      txt(g, x(mm.lo) - 4, yy + 12, mm.lo, { anchor: 'end', size: 10, weight: 700, fill: C.muted });
+      txt(g, x(mm.hi) + 8, yy + 12, mm.hi + ' MPa', { size: 10, weight: 700, fill: mm.c });
+    });
+    g.append('g').attr('transform', 'translate(0,158)').call(d3.axisBottom(x).ticks(5).tickFormat(function (d) { return d + ''; }));
+    g.selectAll('.domain,.tick line').style('stroke', C.border);
+    g.selectAll('.tick text').style('fill', C.muted).attr('font-family', SANS).attr('font-size', 10);
+    txt(g, 105, 190, 'Δ pressure (MPa)', { anchor: 'middle', size: 10.5 });
+    txt(g, 0, 224, 'Balls spread propagation across clusters;', { size: 10.5, weight: 600, fill: C.inkLight });
+    txt(g, 0, 240, 'particles mostly re-activated stimulated rock.', { size: 10.5, weight: 600, fill: C.inkLight });
+
+    // right: event density across stages
+    var g2 = svg.append('g').attr('transform', 'translate(330,54)');
+    txt(g2, 0, -18, 'Relative micro-seismic event density', { size: 11.5, weight: 700, fill: C.inkLight });
+    var W2 = 268, H2 = 200;
+    var xs = d3.scaleLinear().domain([1, 25]).range([0, W2]);
+    var ys = d3.scaleLinear().domain([0, 1]).range([H2, 0]);
+    g2.append('rect').attr('x', xs(11)).attr('y', 0).attr('width', xs(17) - xs(11)).attr('height', H2)
+      .style('fill', C.gold).attr('opacity', 0.14);
+    txt(g2, (xs(11) + xs(17)) / 2, -4, 'plugged', { anchor: 'middle', size: 10, weight: 700, fill: C.gold });
+
+    var dens = [];
+    for (var s = 1; s <= 25; s++) {
+      var v;
+      if (s <= 9) v = 0.28;
+      else if (s >= 11 && s <= 17) v = 0.9;
+      else if (s > 20) v = 0.3;
+      else v = 0.55;
+      dens.push({ s: s, v: v });
+    }
+    g2.selectAll('.b').data(dens).enter().append('rect')
+      .attr('x', function (d) { return xs(d.s) - 4; }).attr('width', 8).attr('rx', 2)
+      .attr('y', H2).attr('height', 0)
+      .style('fill', function (d) { return (d.s >= 11 && d.s <= 17) ? C.sec : C.accent; })
+      .attr('opacity', 0.82)
+      .transition().duration(DUR ? 600 : 0).delay(function (d, i) { return DUR ? i * 26 : 0; })
+      .attr('y', function (d) { return ys(d.v); }).attr('height', function (d) { return H2 - ys(d.v); });
+
+    g2.append('g').attr('transform', 'translate(0,' + H2 + ')').call(d3.axisBottom(xs).ticks(6));
+    g2.selectAll('.domain,.tick line').style('stroke', C.border);
+    g2.selectAll('.tick text').style('fill', C.muted).attr('font-family', SANS).attr('font-size', 10);
+    txt(g2, W2 / 2, H2 + 34, 'Stage number', { anchor: 'middle', size: 10.5 });
+    txt(g2, 0, H2 + 62, 'Levels are the qualitative pattern reported in §3.3.2.4', { size: 10, fill: C.muted });
+    txt(g2, 0, H2 + 78, '(sparse first 9 and last 5 stages; elevated 11–17):', { size: 10, fill: C.muted });
+    txt(g2, 0, H2 + 94, 'per-stage counts are not published.', { size: 10, fill: C.muted });
+  }
+
+  /* ═══════════ 13 · COMPLEXITY CLASSES ═══════════ */
+  function renderComplexity() {
+    var svg = d3.select('#chart-complexity'); svg.selectAll('*').remove();
+    var classes = [
+      { n: 'Complex', cov: 92, thr: '≥ 85% coverage', c: C.sec, branches: 7, depth: 3, seed: 11 },
+      { n: 'Intermediate', cov: 60, thr: '≈ 60% coverage', c: C.gold, branches: 4, depth: 2, seed: 27 },
+      { n: 'Not complex', cov: 38, thr: '< 60% coverage', c: C.accent, branches: 2, depth: 1, seed: 41 }
+    ];
+    var cw = 200, top = 46;
+    classes.forEach(function (cl, i) {
+      var g = svg.append('g').attr('transform', 'translate(' + (22 + i * (cw + 8)) + ',' + top + ')');
+      fadeIn(g, i * 200);
+      g.append('rect').attr('width', cw).attr('height', 236).attr('rx', 8)
+        .style('fill', C.grid).style('stroke', C.border);
+
+      var r = rng(cl.seed), cx = cw / 2, cy = 122;
+      // event footprint hull
+      g.append('ellipse').attr('cx', cx).attr('cy', cy).attr('rx', 82).attr('ry', 74)
+        .attr('fill', 'none').style('stroke', C.muted).attr('stroke-dasharray', '5,4').attr('stroke-width', 1.2);
+
+      // wellbore
+      g.append('line').attr('x1', cx).attr('x2', cx).attr('y1', cy - 84).attr('y2', cy + 84)
+        .style('stroke', C.inkLight).attr('stroke-width', 2.4);
+
+      // fracture branches (recursive)
+      var segs = [];
+      function branch(x0, y0, ang, len, depth) {
+        var x1 = x0 + Math.cos(ang) * len, y1 = y0 + Math.sin(ang) * len;
+        segs.push([x0, y0, x1, y1, depth]);
+        if (depth <= 0) return;
+        var n = 1 + Math.floor(r() * 2);
+        for (var k = 0; k < n; k++) branch(x1, y1, ang + (r() - 0.5) * 1.5, len * (0.55 + r() * 0.25), depth - 1);
+      }
+      for (var b = 0; b < cl.branches; b++) {
+        var side = b % 2 === 0 ? 0 : Math.PI;
+        var y0 = cy - 60 + (b / Math.max(1, cl.branches - 1)) * 120;
+        branch(cx, y0, side + (r() - 0.5) * 0.7, 26 + r() * 16, cl.depth);
+      }
+      segs.forEach(function (s, j) {
+        var ln = g.append('line').attr('x1', s[0]).attr('y1', s[1]).attr('x2', s[0]).attr('y2', s[1])
+          .style('stroke', cl.c).attr('stroke-width', 1 + s[4] * 0.9).attr('opacity', 0.85).attr('stroke-linecap', 'round');
+        if (DUR) ln.transition().delay(i * 200 + j * 12).duration(400).attr('x2', s[2]).attr('y2', s[3]);
+        else ln.attr('x2', s[2]).attr('y2', s[3]);
+      });
+
+      // event dots
+      for (var e = 0; e < 40; e++) {
+        var a = r() * Math.PI * 2, rad = Math.sqrt(r()) * 78;
+        g.append('circle').attr('cx', cx + Math.cos(a) * rad).attr('cy', cy + Math.sin(a) * rad * 0.9)
+          .attr('r', 1.8).style('fill', C.muted).attr('opacity', 0.4);
+      }
+
+      txt(g, cw / 2, 24, cl.n, { anchor: 'middle', size: 13, weight: 800, fill: cl.c });
+      txt(g, cw / 2, 40, cl.thr, { anchor: 'middle', size: 10, weight: 600, fill: C.muted });
+
+      // coverage meter
+      var mg = g.append('g').attr('transform', 'translate(24,214)');
+      mg.append('rect').attr('width', cw - 48).attr('height', 8).attr('rx', 4).style('fill', C.grid);
+      var fill = mg.append('rect').attr('height', 8).attr('rx', 4).attr('width', 0).style('fill', cl.c).attr('opacity', 0.9);
+      grow(fill, 'width', (cw - 48) * cl.cov / 100, i * 200 + 400);
+      txt(mg, cw - 48, -6, cl.cov + '%', { anchor: 'end', size: 11, weight: 800, fill: cl.c });
+    });
+
+    txt(svg.append('g'), 22, 306, 'Effective micro-fracture grid (solid) against total micro-seismic event footprint (dashed).', { size: 10.5, fill: C.muted });
+    txt(svg.append('g'), 22, 324, 'Well X stages 13 and 15 scored highest — both sit beside natural fractures near fault zones.', { size: 10.5, weight: 600, fill: C.inkLight });
+    txt(svg.append('g'), 22, 348, 'Geology sets the ceiling. Engineering decides how close you get to it.', { size: 12, weight: 800, fill: C.sec });
+  }
+
+  /* ═══════════ 14 · SCORECARD ═══════════ */
+  function renderScorecard() {
+    var svg = d3.select('#chart-scorecard'); svg.selectAll('*').remove();
+    var g = svg.append('g').attr('transform', 'translate(38,34)');
+    txt(g, 0, 0, 'Defended with field data', { size: 11.5, weight: 700, fill: C.inkLight });
+
+    var claims = [
+      { v: '2.45×', l: 'longer effective duration from complex fracture networks', c: C.sec },
+      { v: '1.9×', l: 'more cumulative additional oil, across 109 operations', c: C.gold },
+      { v: '5.2×', l: 'gap between designed and measured half-length in Well 2', c: C.accent }
+    ];
+    claims.forEach(function (c0, i) {
+      var gx = g.append('g').attr('transform', 'translate(' + i * 194 + ',18)');
+      fadeIn(gx, i * 140);
+      gx.append('rect').attr('width', 182).attr('height', 92).attr('rx', 8)
+        .style('fill', c0.c).attr('opacity', 0.12).style('stroke', c0.c).attr('stroke-width', 1.2);
+      txt(gx, 16, 44, c0.v, { size: 28, weight: 800, fill: c0.c });
+      var words = c0.l.split(' '), line = '', lines = [];
+      words.forEach(function (w) { if ((line + ' ' + w).trim().length > 26) { lines.push(line.trim()); line = w; } else line += ' ' + w; });
+      lines.push(line.trim());
+      lines.forEach(function (L, j) { txt(gx, 16, 62 + j * 12, L, { size: 9.8, weight: 600, fill: C.inkLight }); });
+    });
+
+    var g2 = svg.append('g').attr('transform', 'translate(38,166)');
+    txt(g2, 0, 0, 'Six recommendations for the field', { size: 11.5, weight: 700, fill: C.inkLight });
+    var recs = [
+      'Monitor every hydraulic fracturing job in real time',
+      'Automate interpretation with machine learning',
+      'Design fracture treatments to the local geology',
+      'Apply advanced noise suppression, not bandpass filtering',
+      'Train operators, researchers and regulators together',
+      'Publish the environmental monitoring record'
+    ];
+    recs.forEach(function (rr, i) {
+      var col = i % 2, row = Math.floor(i / 2);
+      var gx = g2.append('g').attr('transform', 'translate(' + col * 292 + ',' + (22 + row * 52) + ')');
+      fadeIn(gx, 400 + i * 80);
+      gx.append('circle').attr('cx', 14).attr('cy', 14).attr('r', 13).style('fill', C.accent).attr('opacity', 0.16).style('stroke', C.accent).attr('stroke-width', 1.2);
+      txt(gx, 14, 18, String(i + 1), { anchor: 'middle', size: 12, weight: 800, fill: C.accent });
+      var words = rr.split(' '), line = '', lines = [];
+      words.forEach(function (w) { if ((line + ' ' + w).trim().length > 32) { lines.push(line.trim()); line = w; } else line += ' ' + w; });
+      lines.push(line.trim());
+      lines.forEach(function (L, j) { txt(gx, 36, 12 + j * 14, L, { size: 10.8, weight: 600, fill: C.inkLight }); });
+    });
+  }
+
+  /* ═══════════ HERO ═══════════ */
+  function drawHeroWave() {
+    var svg = d3.select('#hero-wave'); svg.selectAll('*').remove();
+    var r = rng(7), pts = [];
+    for (var x = 0; x <= 1200; x += 5) {
+      var env = Math.exp(-Math.pow((x - 520) / 300, 2)) * 34 + 4;
+      pts.push([x, 60 + Math.sin(x / 13) * env * (0.5 + r() * 0.6) * (r() > 0.5 ? 1 : -1) * 0.5 + Math.sin(x / 47) * 6]);
+    }
+    var line = d3.line().x(function (d) { return d[0]; }).y(function (d) { return d[1]; }).curve(d3.curveBasis);
+    var p = svg.append('path').attr('d', line(pts)).attr('fill', 'none')
+      .style('stroke', 'var(--secondary)').attr('stroke-width', 1.4);
+    if (DUR) { var L = p.node().getTotalLength(); p.attr('stroke-dasharray', L).attr('stroke-dashoffset', L)
+      .transition().duration(2600).ease(d3.easeCubicOut).attr('stroke-dashoffset', 0); }
+    svg.append('path').attr('d', line(pts.map(function (q) { return [q[0], 120 - (q[1] - 60) * 0.55]; })))
+      .attr('fill', 'none').style('stroke', 'var(--accent)').attr('stroke-width', 1).attr('opacity', 0.5);
+  }
+
+  var HERO_STATS = [
+    { target: 2, unit: '', label: 'Field case studies' },
+    { target: 109, unit: '', label: 'Fracturing operations analysed' },
+    { target: 25, unit: '', label: 'Stages, Well X' },
+    { target: 311, unit: 'd', label: 'Longest sustained effect' }
   ];
   function buildHeroStats() {
-    const wrap = d3s.select('#hero-stats');
-    const items = wrap.selectAll('.hero-stat').data(heroStats).enter().append('div').attr('class', 'hero-stat');
-    items.append('span').attr('class', 'num mono').html(d => `0<span class="unit">${d.unit}</span>`);
-    items.append('span').attr('class', 'label').text(d => d.label);
-    const nums = wrap.selectAll('.num');
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach(e => {
+    var wrap = d3.select('#hero-stats');
+    HERO_STATS.forEach(function (s) {
+      var d = wrap.append('div').attr('class', 'hero-stat');
+      d.append('span').attr('class', 'stat-num').attr('data-target', s.target).text('0');
+      if (s.unit) d.append('span').attr('class', 'stat-unit').text(s.unit);
+      d.append('div').attr('class', 'stat-label').text(s.label);
+    });
+    var nums = document.querySelectorAll('.stat-num');
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
         if (!e.isIntersecting) return;
         io.unobserve(e.target);
-        const d = d3s.select(e.target).datum();
-        const start = performance.now();
-        function tick(now) {
-          const t = Math.min((now - start) / 1400, 1);
-          const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-          e.target.innerHTML = Math.floor(ease * d.target) + `<span class="unit">${d.unit}</span>`;
-          if (t < 1) requestAnimationFrame(tick);
-        }
-        requestAnimationFrame(tick);
+        var target = +e.target.dataset.target;
+        if (!DUR) { e.target.textContent = target; return; }
+        var t0 = performance.now();
+        (function tick(now) {
+          var t = Math.min((now - t0) / 1300, 1);
+          var ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+          e.target.textContent = Math.floor(ease * target);
+          if (t < 1) requestAnimationFrame(tick); else e.target.textContent = target;
+        })(performance.now());
       });
     }, { threshold: 0.4 });
-    nums.each(function () { io.observe(this); });
+    nums.forEach(function (n) { io.observe(n); });
   }
 
-  /* ================= CHART RENDERERS ================= */
-
-  function renderTimeline() {
-    const data = [
-      { t: 0, len: 0, mag: -4.0 }, { t: 20, len: 12, mag: -3.6 }, { t: 40, len: 26, mag: -3.2 },
-      { t: 60, len: 41, mag: -2.8 }, { t: 80, len: 55, mag: -2.5 }, { t: 100, len: 68, mag: -2.1 },
-      { t: 120, len: 79, mag: -1.8 }, { t: 140, len: 88, mag: -1.5 }, { t: 160, len: 93, mag: -1.2 },
-      { t: 180, len: 95, mag: -1.0 }
-    ];
-    const svg = d3s.select('#chart-context'); svg.selectAll('*').remove();
-    const m = { t: 44, r: 44, b: 40, l: 16 }, w = 560 - m.l - m.r, h = 360 - m.b - 30;
-    const g = svg.append('g').attr('transform', `translate(${m.l + 44},30)`);
-    const x = d3s.scaleLinear().domain([0, 180]).range([0, w]);
-    const yLen = d3s.scaleLinear().domain([0, 100]).range([h, 0]);
-    const yMag = d3s.scaleLinear().domain([-4.2, -0.6]).range([h, 0]);
-    g.append('g').attr('transform', `translate(0,${h})`).call(d3s.axisBottom(x).ticks(5).tickSize(-h).tickFormat(d => d + 'm'))
-      .call(sel => sel.selectAll('line').attr('stroke', colors.line)).call(sel => sel.select('.domain').attr('stroke', colors.line));
-    g.append('g').call(d3s.axisLeft(yLen).ticks(4)).call(sel => sel.selectAll('text').attr('fill', colors.petrolSoft)).call(sel => sel.select('.domain').remove()).call(sel => sel.selectAll('line').remove());
-    g.append('g').attr('transform', `translate(${w},0)`).call(d3s.axisRight(yMag).ticks(4)).call(sel => sel.selectAll('text').attr('fill', colors.oxideSoft)).call(sel => sel.select('.domain').remove()).call(sel => sel.selectAll('line').remove());
-    g.selectAll('.tick text').attr('font-family', 'IBM Plex Mono').attr('font-size', 10).attr('fill', colors.inkMuted);
-
-    const lineLen = d3s.line().x(d => x(d.t)).y(d => yLen(d.len)).curve(d3s.curveMonotoneX);
-    const lineMag = d3s.line().x(d => x(d.t)).y(d => yMag(d.mag)).curve(d3s.curveMonotoneX);
-    [{ gen: lineLen, color: colors.petrolSoft }, { gen: lineMag, color: colors.oxideSoft }].forEach(spec => {
-      const p = g.append('path').datum(data).attr('d', spec.gen).attr('fill', 'none').attr('stroke', spec.color).attr('stroke-width', 2.5);
-      const len = p.node().getTotalLength();
-      p.attr('stroke-dasharray', len).attr('stroke-dashoffset', len).transition().duration(1600).ease(d3s.easeCubicOut).attr('stroke-dashoffset', 0);
-    });
-    g.append('text').attr('x', 0).attr('y', -12).attr('fill', colors.petrolSoft).attr('font-family', 'IBM Plex Mono').attr('font-size', 11).text('— Fracture length (m)');
-    g.append('text').attr('x', w * 0.55).attr('y', -12).attr('fill', colors.oxideSoft).attr('font-family', 'IBM Plex Mono').attr('font-size', 11).text('— Magnitude (Mw)');
-  }
-
-  function renderBubbles() {
-    const svg = d3s.select('#chart-problem'); svg.selectAll('*').remove();
-    const cx = 280, cy = 220;
-    const centers = [
-      { id: 'preservation', label: 'Asset\nPreservation', dx: -95, r: 46, color: colors.petrol },
-      { id: 'value', label: 'Value\nEnhancement', dx: 95, r: 46, color: colors.oxide }
-    ];
-    const vars = [
-      { label: 'Micro-seismic\nMonitoring', angle: -100, dist: 175, r: 32, color: colors.petrolSoft },
-      { label: 'Noise\nSuppression', angle: -140, dist: 168, r: 27, color: colors.petrolSoft },
-      { label: 'Event\nLocalization', angle: -60, dist: 175, r: 27, color: colors.petrolSoft },
-      { label: 'Machine\nLearning', angle: -20, dist: 168, r: 30, color: colors.amber },
-      { label: 'Source\nMechanism', angle: -160, dist: 190, r: 25, color: colors.amber },
-      { label: 'Reservoir\nGeology', angle: 70, dist: 165, r: 27, color: colors.oxideSoft },
-      { label: 'Natural Fracture\nInteraction', angle: 110, dist: 175, r: 27, color: colors.oxideSoft },
-      { label: 'Storativity\nRatio (ω)', angle: 145, dist: 168, r: 24, color: colors.oxideSoft },
-      { label: 'Fracture\nComplexity', angle: 163, dist: 185, r: 24, color: colors.oxideSoft }
-    ];
-    const g = svg.append('g').attr('transform', `translate(${cx},${cy})`);
-    centers.forEach(c => {
-      const cg = g.append('g').attr('transform', `translate(${c.dx},0)`);
-      cg.append('circle').attr('r', 0).attr('fill', c.color).attr('opacity', 0.85).transition().duration(700).attr('r', c.r);
-      const lines = c.label.split('\n');
-      lines.forEach((l, i) => cg.append('text').attr('text-anchor', 'middle').attr('y', (i - (lines.length - 1) / 2) * 13 + 4)
-        .attr('fill', '#14171A').attr('font-family', 'IBM Plex Sans').attr('font-weight', 600).attr('font-size', 12).text(l));
-    });
-    vars.forEach((v, i) => {
-      const rad = (v.angle * Math.PI) / 180;
-      const vx = Math.cos(rad) * v.dist, vy = Math.sin(rad) * v.dist;
-      const vg = g.append('g').attr('transform', `translate(${vx},${vy})`).attr('opacity', 0);
-      vg.transition().delay(150 + i * 60).duration(500).attr('opacity', 1);
-      vg.append('circle').attr('r', v.r).attr('fill', v.color).attr('opacity', 0.28).attr('stroke', v.color).attr('stroke-width', 1.4);
-      const lines = v.label.split('\n');
-      lines.forEach((l, j) => vg.append('text').attr('text-anchor', 'middle').attr('y', (j - (lines.length - 1) / 2) * 12 + 4)
-        .attr('fill', colors.ink).attr('font-family', 'IBM Plex Mono').attr('font-size', 10).text(l));
-    });
-  }
-
-  function renderSem() {
-    const svg = d3s.select('#chart-methodology'); svg.selectAll('*').remove();
-    const nodes = {
-      msm: { label: 'Micro-seismic\nData', x: 40, y: 40, w: 110, h: 46 },
-      noise: { label: 'Noise\nSuppression', x: 40, y: 120, w: 110, h: 46 },
-      detect: { label: 'Event Detection\n& Picking', x: 230, y: 40, w: 120, h: 46 },
-      locate: { label: 'Localization', x: 230, y: 120, w: 120, h: 46 },
-      source: { label: 'Source\nMechanism', x: 230, y: 200, w: 120, h: 46 },
-      cluster: { label: 'Cluster\nAnalysis', x: 420, y: 120, w: 110, h: 46, accent: true },
-      network: { label: 'Fracture Network\nInterpretation', x: 590, y: 120, w: 140, h: 56, accent: true }
-    };
-    const paths = [
-      ['msm', 'noise', true], ['noise', 'detect', true], ['noise', 'locate', true],
-      ['detect', 'locate', true], ['locate', 'source', false], ['locate', 'cluster', true],
-      ['source', 'cluster', false], ['cluster', 'network', true]
-    ];
-    const g = svg.append('g').attr('transform', 'translate(10,10)');
-    const center = k => [nodes[k].x + nodes[k].w / 2, nodes[k].y + nodes[k].h / 2];
-    g.selectAll('.pathline').data(paths).enter().append('line')
-      .attr('x1', d => center(d[0])[0]).attr('y1', d => center(d[0])[1])
-      .attr('x2', d => center(d[0])[0]).attr('y2', d => center(d[0])[1])
-      .attr('stroke', d => d[2] ? colors.petrolSoft : colors.inkMuted)
-      .attr('stroke-width', d => d[2] ? 2 : 1.3)
-      .attr('stroke-dasharray', d => d[2] ? null : '4,3')
-      .transition().duration(900).delay((d, i) => i * 90)
-      .attr('x2', d => center(d[1])[0]).attr('y2', d => center(d[1])[1]);
-
-    Object.entries(nodes).forEach(([key, n], i) => {
-      const ng = g.append('g').attr('transform', `translate(${n.x},${n.y})`).attr('opacity', 0);
-      ng.transition().delay(i * 70).duration(500).attr('opacity', 1);
-      ng.append('rect').attr('width', n.w).attr('height', n.h).attr('rx', 6)
-        .attr('fill', n.accent ? colors.oxide : colors.petrol).attr('opacity', n.accent ? 0.9 : 0.75);
-      const lines = n.label.split('\n');
-      lines.forEach((l, j) => ng.append('text').attr('x', n.w / 2).attr('text-anchor', 'middle')
-        .attr('y', n.h / 2 + (j - (lines.length - 1) / 2) * 13 + 4)
-        .attr('fill', '#14171A').attr('font-family', 'IBM Plex Sans').attr('font-weight', 600).attr('font-size', 11).text(l));
-    });
-    g.append('circle').attr('cx', 8).attr('cy', 280).attr('r', 5).attr('fill', colors.petrolSoft);
-    g.append('text').attr('x', 18).attr('y', 284).attr('fill', colors.inkMuted).attr('font-family', 'IBM Plex Mono').attr('font-size', 10).text('Core workflow');
-    g.append('line').attr('x1', 130).attr('x2', 148).attr('y1', 280).attr('y2', 280).attr('stroke', colors.inkMuted).attr('stroke-dasharray', '4,3');
-    g.append('text').attr('x', 154).attr('y', 284).attr('fill', colors.inkMuted).attr('font-family', 'IBM Plex Mono').attr('font-size', 10).text('Supporting step');
-  }
-
-  function renderScatter() {
-    const points = [
-      { name: 'Well 1 (Simple)', x: 0.28, y: 11, field: 'Gagarinskoe', real: true },
-      { name: 'Well 2 (Complex)', x: 0.82, y: 18, field: 'Gagarinskoe', real: true },
-      { name: 'Offset A', x: 0.35, y: 9, field: 'Ozernoe' }, { name: 'Offset B', x: 0.41, y: 10.5, field: 'Ozernoe' },
-      { name: 'Offset C', x: 0.55, y: 13, field: 'Gagarinskoe' }, { name: 'Offset D', x: 0.62, y: 14.5, field: 'Ozernoe' },
-      { name: 'Offset E', x: 0.70, y: 16, field: 'Gagarinskoe' }, { name: 'Offset F', x: 0.20, y: 7, field: 'Ozernoe' },
-      { name: 'Offset G', x: 0.48, y: 12, field: 'Gagarinskoe' }, { name: 'Offset H', x: 0.90, y: 19, field: 'Gagarinskoe' }
-    ];
-    const svg = d3s.select('#chart-finding1'); svg.selectAll('*').remove();
-    const m = { t: 20, r: 20, b: 44, l: 46 }, w = 560 - m.l - m.r, h = 380 - m.t - m.b;
-    const g = svg.append('g').attr('transform', `translate(${m.l},${m.t})`);
-    const x = d3s.scaleLinear().domain([0, 1]).range([0, w]);
-    const y = d3s.scaleLinear().domain([0, 20]).range([h, 0]);
-    g.append('g').attr('transform', `translate(0,${h})`).call(d3s.axisBottom(x).ticks(5).tickFormat(d3s.format('.1f')))
-      .call(sel => sel.selectAll('text').attr('fill', colors.inkMuted).attr('font-family', 'IBM Plex Mono').attr('font-size', 10));
-    g.append('g').call(d3s.axisLeft(y).ticks(5))
-      .call(sel => sel.selectAll('text').attr('fill', colors.inkMuted).attr('font-family', 'IBM Plex Mono').attr('font-size', 10));
-    g.selectAll('.domain,.tick line').attr('stroke', colors.line);
-    g.append('text').attr('x', w / 2).attr('y', h + 36).attr('text-anchor', 'middle').attr('fill', colors.inkMuted).attr('font-family', 'IBM Plex Mono').attr('font-size', 10).text('Storativity ratio (ω), normalized');
-    g.append('text').attr('transform', 'rotate(-90)').attr('x', -h / 2).attr('y', -32).attr('text-anchor', 'middle').attr('fill', colors.inkMuted).attr('font-family', 'IBM Plex Mono').attr('font-size', 10).text('Effective duration (months)');
-
-    const reg = (() => {
-      const n = points.length, sx = d3s.sum(points, d => d.x), sy = d3s.sum(points, d => d.y);
-      const sxy = d3s.sum(points, d => d.x * d.y), sxx = d3s.sum(points, d => d.x * d.x);
-      const slope = (n * sxy - sx * sy) / (n * sxx - sx * sx); const intercept = (sy - slope * sx) / n;
-      return [{ x: 0, y: intercept }, { x: 1, y: slope + intercept }];
-    })();
-    g.append('line').attr('x1', x(reg[0].x)).attr('y1', y(reg[0].y)).attr('x2', x(reg[1].x)).attr('y2', y(reg[1].y))
-      .attr('stroke', colors.amber).attr('stroke-width', 1.6).attr('stroke-dasharray', '5,4').attr('opacity', 0.8);
-
-    const color = d3s.scaleOrdinal().domain(['Gagarinskoe', 'Ozernoe']).range([colors.petrolSoft, colors.oxideSoft]);
-    g.selectAll('.pt').data(points).enter().append('circle')
-      .attr('cx', d => x(d.x)).attr('cy', d => y(d.y)).attr('r', 0)
-      .attr('fill', d => color(d.field)).attr('stroke', d => d.real ? colors.amber : 'none').attr('stroke-width', 2)
-      .transition().delay((d, i) => i * 40).duration(400).attr('r', d => d.real ? 8 : 5.5);
-    g.selectAll('.lbl').data(points.filter(d => d.real)).enter().append('text')
-      .attr('x', d => x(d.x) + 10).attr('y', d => y(d.y) + 4).attr('fill', colors.amber)
-      .attr('font-family', 'IBM Plex Mono').attr('font-size', 10).text(d => d.name);
-  }
-
-  function renderMatrix() {
-    const tasks = ['Noise Suppression', 'Event Detection', 'Localization', 'Source Mechanism', 'Cluster Analysis', 'Earthquake Prediction'];
-    const techs = ['CNN', 'RNN', 'PINN', 'GNN / Autoenc.', 'Bayesian / MDN'];
-    const strength = {
-      'Noise Suppression': { CNN: 2, RNN: 0, PINN: 0, 'GNN / Autoenc.': 2, 'Bayesian / MDN': 0 },
-      'Event Detection': { CNN: 2, RNN: 1, PINN: 0, 'GNN / Autoenc.': 0, 'Bayesian / MDN': 0 },
-      'Localization': { CNN: 1, RNN: 0, PINN: 2, 'GNN / Autoenc.': 0, 'Bayesian / MDN': 1 },
-      'Source Mechanism': { CNN: 1, RNN: 0, PINN: 2, 'GNN / Autoenc.': 0, 'Bayesian / MDN': 2 },
-      'Cluster Analysis': { CNN: 0, RNN: 0, PINN: 0, 'GNN / Autoenc.': 2, 'Bayesian / MDN': 0 },
-      'Earthquake Prediction': { CNN: 1, RNN: 1, PINN: 0, 'GNN / Autoenc.': 0, 'Bayesian / MDN': 0 }
-    };
-    const svg = d3s.select('#chart-finding2'); svg.selectAll('*').remove();
-    const m = { t: 90, l: 150 }, cw = 62, ch = 38;
-    const g = svg.append('g').attr('transform', `translate(${m.l},${m.t})`);
-    techs.forEach((t, i) => g.append('text').attr('x', i * cw + cw / 2).attr('y', -14).attr('text-anchor', 'middle')
-      .attr('fill', colors.inkDim).attr('font-family', 'IBM Plex Mono').attr('font-size', 10).text(t));
-    tasks.forEach((task, r) => {
-      g.append('text').attr('x', -12).attr('y', r * ch + ch / 2 + 4).attr('text-anchor', 'end')
-        .attr('fill', colors.inkDim).attr('font-family', 'IBM Plex Sans').attr('font-size', 11).text(task);
-      techs.forEach((tech, c) => {
-        const s = strength[task][tech];
-        const color = s === 2 ? colors.oxide : s === 1 ? colors.petrol : 'transparent';
-        const opacity = s === 2 ? 0.9 : s === 1 ? 0.45 : 0;
-        g.append('rect').attr('x', c * cw + 2).attr('y', r * ch + 2).attr('width', cw - 4).attr('height', ch - 4).attr('rx', 4)
-          .attr('fill', color).attr('opacity', 0).attr('stroke', colors.line)
-          .transition().delay((r * techs.length + c) * 18).duration(300).attr('opacity', opacity);
-      });
-    });
-  }
-
-  function renderBars() {
-    const metrics = [
-      { label: 'Production increase (t/d)', w1: 7.6, w2: 10.5, max: 12 },
-      { label: 'Effective duration (months)', w1: 11, w2: 18, max: 20 },
-      { label: 'Post-frac flow rate (t/d)', w1: 9.0, w2: 12.5, max: 14 }
-    ];
-    const svg = d3s.select('#chart-bigpicture'); svg.selectAll('*').remove();
-    const rowH = 110, barH = 22, w = 460, labelW = 0;
-    metrics.forEach((met, i) => {
-      const g = svg.append('g').attr('transform', `translate(40,${i * rowH + 20})`);
-      const x = d3s.scaleLinear().domain([0, met.max]).range([0, w]);
-      g.append('text').attr('y', -4).attr('fill', colors.inkDim).attr('font-family', 'IBM Plex Mono').attr('font-size', 11).text(met.label);
-      g.append('rect').attr('y', 10).attr('width', 0).attr('height', barH).attr('rx', 3).attr('fill', colors.petrolSoft)
-        .transition().duration(700).attr('width', x(met.w1));
-      g.append('text').attr('x', 6).attr('y', 10 + barH / 2 + 4).attr('fill', '#14171A').attr('font-family', 'IBM Plex Mono').attr('font-weight', 600).attr('font-size', 11).text('Well 1 · ' + met.w1);
-      g.append('rect').attr('y', 10 + barH + 8).attr('width', 0).attr('height', barH).attr('rx', 3).attr('fill', colors.oxide)
-        .transition().duration(700).delay(150).attr('width', x(met.w2));
-      g.append('text').attr('x', 6).attr('y', 10 + barH + 8 + barH / 2 + 4).attr('fill', '#14171A').attr('font-family', 'IBM Plex Mono').attr('font-weight', 600).attr('font-size', 11).text('Well 2 · ' + met.w2);
-    });
-  }
-
-  function renderMap() {
-    const wells = [
-      { name: 'Well 1', field: 'Gagarinskoe', value: 45 },
-      { name: 'Well 2', field: 'Gagarinskoe', value: 78 },
-      { name: 'Well X', field: 'Puguang', value: 85 }
-    ];
-    const svg = d3s.select('#chart-conclusion'); svg.selectAll('*').remove();
-    const scale = d3s.scaleLinear().domain([40, 90]).range([0.25, 1]);
-    const cw = 150, gap = 24, startX = (560 - (cw * 3 + gap * 2)) / 2;
-    wells.forEach((w, i) => {
-      const g = svg.append('g').attr('transform', `translate(${startX + i * (cw + gap)}, 40)`);
-      g.append('rect').attr('width', cw).attr('height', cw).attr('rx', 8)
-        .attr('fill', colors.petrol).attr('opacity', 0)
-        .transition().delay(i * 150).duration(600).attr('opacity', scale(w.value));
-      g.append('text').attr('x', cw / 2).attr('y', cw / 2 - 6).attr('text-anchor', 'middle')
-        .attr('fill', colors.ink).attr('font-family', 'Fraunces').attr('font-size', 30).attr('font-weight', 600)
-        .text(w.value + '%').attr('opacity', 0).transition().delay(i * 150 + 200).duration(400).attr('opacity', 1);
-      g.append('text').attr('x', cw / 2).attr('y', cw / 2 + 20).attr('text-anchor', 'middle')
-        .attr('fill', colors.inkMuted).attr('font-family', 'IBM Plex Mono').attr('font-size', 10).text('COMPLEXITY');
-      g.append('text').attr('x', cw / 2).attr('y', cw + 26).attr('text-anchor', 'middle')
-        .attr('fill', colors.sandstone || colors.ink).attr('font-family', 'IBM Plex Sans').attr('font-weight', 600).attr('font-size', 13).text(w.name);
-      g.append('text').attr('x', cw / 2).attr('y', cw + 44).attr('text-anchor', 'middle')
-        .attr('fill', colors.inkMuted).attr('font-family', 'IBM Plex Mono').attr('font-size', 10).text(w.field);
-    });
-    svg.append('line').attr('x1', 0).attr('x2', 0).attr('y1', 0).attr('y2', 0); // no-op keeps svg non-empty on some browsers
-  }
-
-  const renderers = {
-    'viz-context': renderTimeline, 'viz-problem': renderBubbles, 'viz-methodology': renderSem,
-    'viz-finding1': renderScatter, 'viz-finding2': renderMatrix, 'viz-bigpicture': renderBars, 'viz-conclusion': renderMap
+  /* ═══════════ RUNTIME ═══════════ */
+  var RENDER = {
+    growth: renderGrowth, magnitude: renderMagnitude, depth: renderDepth, gap: renderGap,
+    workflow: renderWorkflow, matrix: renderMatrix, fields: renderFields, production: renderProduction,
+    premium: renderPremium, wellx: renderWellX, stages: renderStages, plugging: renderPlugging,
+    complexity: renderComplexity, scorecard: renderScorecard
   };
-  const initialized = {};
-
-  function activateViz(id) {
-    document.querySelectorAll('.viz-panel').forEach(p => p.classList.toggle('active', p.id === id));
-    if (!initialized[id]) { initialized[id] = true; renderers[id] && renderers[id](); }
+  var done = {};
+  function activate(vizId) {
+    document.querySelectorAll('.viz-panel').forEach(function (p) { p.classList.toggle('active', p.id === vizId); });
+    document.querySelectorAll('.mob-tab').forEach(function (t) { t.classList.toggle('active', t.dataset.viz === vizId); });
+    var panel = document.getElementById(vizId);
+    if (panel && !done[vizId]) { done[vizId] = true; var fn = RENDER[panel.dataset.render]; if (fn) fn(); }
+    var tab = document.querySelector('.mob-tab.active');
+    if (tab && tab.scrollIntoView) tab.scrollIntoView({ block: 'nearest', inline: 'center', behavior: reduced ? 'auto' : 'smooth' });
   }
 
-  /* ---------- Nav dots ---------- */
-  const sections = Array.from(document.querySelectorAll('.scroll-section'));
-  const navDotsWrap = d3s.select('#nav-dots');
-  sections.forEach((s, i) => {
-    navDotsWrap.append('button').attr('class', 'nav-dot' + (i === 0 ? ' active' : ''))
-      .attr('aria-label', s.querySelector('h2').textContent)
-      .on('click', () => s.scrollIntoView({ behavior: 'smooth' }));
+  var sections = Array.prototype.slice.call(document.querySelectorAll('.scroll-section'));
+
+  // nav dots + mobile tabs
+  var navWrap = document.getElementById('nav-sections');
+  var tabWrap = document.getElementById('mobile-tab-bar');
+  sections.forEach(function (s, i) {
+    var b = document.createElement('button');
+    b.className = 'nav-dot' + (i === 0 ? ' active' : '');
+    b.setAttribute('data-label', s.dataset.nav);
+    b.setAttribute('aria-label', s.dataset.nav);
+    b.addEventListener('click', function () { s.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' }); });
+    navWrap.appendChild(b);
+
+    var t = document.createElement('button');
+    t.className = 'mob-tab' + (i === 0 ? ' active' : '');
+    t.dataset.viz = s.dataset.viz;
+    t.innerHTML = s.dataset.mob;
+    t.addEventListener('click', function () { s.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' }); });
+    tabWrap.appendChild(t);
   });
-  function setActiveDot(i) { d3s.selectAll('.nav-dot').classed('active', (d, idx) => idx === i); }
+  var dots = Array.prototype.slice.call(document.querySelectorAll('.nav-dot'));
 
-  /* ---------- Scroll tracking (desktop) ---------- */
-  function isMobile() { return window.innerWidth <= 900; }
-
-  if (!isMobile()) {
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        const el = entry.target;
-        if (entry.isIntersecting) {
-          el.classList.add('is-active');
-          const idx = sections.indexOf(el);
-          activateViz(el.dataset.viz); setActiveDot(idx);
-        } else { el.classList.remove('is-active'); }
-      });
-    }, { root: null, rootMargin: '-10% 0px -50% 0px', threshold: 0 });
-    sections.forEach(s => io.observe(s));
-  } else {
-    // Mobile: show every panel inline under its own section, no switching needed
-    sections.forEach(s => {
-      const panel = document.getElementById(s.dataset.viz);
-      if (panel) { panel.classList.add('mobile-visible'); s.after(panel); }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      if (!en.isIntersecting) { en.target.classList.remove('is-active'); return; }
+      en.target.classList.add('is-active');
+      var i = sections.indexOf(en.target);
+      dots.forEach(function (d, j) { d.classList.toggle('active', j === i); });
+      activate(en.target.dataset.viz);
     });
-    Object.keys(renderers).forEach(id => { initialized[id] = true; renderers[id](); });
-  }
+  }, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
+  sections.forEach(function (s) { io.observe(s); });
 
-  /* ---------- Progress bar + nav bg ---------- */
-  window.addEventListener('scroll', () => {
-    const scrolled = window.scrollY;
-    const total = document.documentElement.scrollHeight - window.innerHeight;
-    d3s.select('#progress-fill').style('width', Math.min(100, (scrolled / total) * 100) + '%');
-    d3s.select('#main-nav').classed('scrolled', scrolled > 80);
+  // progress + nav background
+  window.addEventListener('scroll', function () {
+    var total = document.documentElement.scrollHeight - window.innerHeight;
+    var pct = total > 0 ? Math.min(100, (window.scrollY / total) * 100) : 0;
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('main-nav').classList.toggle('scrolled', window.scrollY > 80);
   }, { passive: true });
+
+  // theme
+  function applyTheme(dark) {
+    document.body.classList.toggle('dark-theme', dark);
+    try { localStorage.setItem('fuw-theme', dark ? 'dark' : 'light'); } catch (e) {}
+  }
+  try { if (localStorage.getItem('fuw-theme') === 'dark') document.body.classList.add('dark-theme'); } catch (e) {}
+  document.querySelectorAll('.theme-toggle-btn').forEach(function (b) {
+    b.addEventListener('click', function () { applyTheme(!document.body.classList.contains('dark-theme')); });
+  });
+
+  // mobile viz collapse + resize
+  var vizCol = document.getElementById('viz-column');
+  document.getElementById('viz-toggle').addEventListener('click', function () { vizCol.classList.toggle('viz-collapsed'); });
+
+  (function () {
+    var handle = document.getElementById('viz-resize-handle');
+    var box = document.getElementById('viz-panels-container');
+    var startY = 0, startH = 0, dragging = false;
+    function down(e) {
+      dragging = true; handle.classList.add('is-dragging');
+      startY = (e.touches ? e.touches[0].clientY : e.clientY);
+      startH = box.getBoundingClientRect().height;
+      e.preventDefault();
+    }
+    function move(e) {
+      if (!dragging) return;
+      var yNow = (e.touches ? e.touches[0].clientY : e.clientY);
+      var h = Math.max(180, Math.min(window.innerHeight * 0.8, startH + (yNow - startY)));
+      box.style.height = h + 'px'; box.style.minHeight = h + 'px';
+    }
+    function up() { dragging = false; handle.classList.remove('is-dragging'); }
+    handle.addEventListener('mousedown', down);
+    handle.addEventListener('touchstart', down, { passive: false });
+    window.addEventListener('mousemove', move);
+    window.addEventListener('touchmove', move, { passive: false });
+    window.addEventListener('mouseup', up);
+    window.addEventListener('touchend', up);
+  })();
 
   drawHeroWave();
   buildHeroStats();
+  activate('viz-context');
 })();
 </script>
 </body>
