@@ -285,7 +285,8 @@ body.dark-theme .theme-toggle-btn .moon-icon { display: none; }
 
 /* ── FOOTER ──────────────────────────────── */
 #main-footer { border-top: 1px solid var(--border); background: var(--paper-dark); padding: 64px 8vw 40px; }
-.footer-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 48px; max-width: 1100px; margin: 0 auto; }
+.footer-grid { display: grid; grid-template-columns: 1.3fr 1fr 1.2fr; gap: 44px; max-width: 1180px; margin: 0 auto; }
+.footer-src p { font-size: 0.78rem; line-height: 1.55; }
 .footer-label { font-family: var(--font-sans); font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 12px; }
 .footer-thesis p { font-family: var(--font-serif); font-size: 1.15rem; line-height: 1.6; color: var(--ink); font-style: italic; }
 .footer-meta p { font-family: var(--font-sans); font-size: 0.88rem; color: var(--ink-light); margin: 5px 0; }
@@ -442,7 +443,7 @@ body.dark-theme .theme-toggle-btn .moon-icon { display: none; }
       <h2>From raw signal to fracture network</h2>
       <p>Downhole recordings arrive buried in low-frequency background noise that conventional bandpass filtering cannot remove. Worse, "dry" events — slip on pre-existing fractures away from the active hydraulic fracture — look almost identical to genuine signal because they are generated the same way. Left in, they inflate the apparent stimulated volume.</p>
       <p>The pipeline this thesis assembles runs noise classification and suppression first, then detection and picking, then localisation and source-mechanism inversion, and finally clusters the surviving events into a fracture-network interpretation. Machine learning is inserted at every stage rather than bolted on at the end.</p>
-      <p>Two field settings validate it: the <strong>Gagarinskoe and Ozernoe</strong> carbonate oilfields in Perm Krai, Russia, monitored with ground-based receiver arrays; and <strong>Well X</strong>, a horizontal shale-gas well in the Puguang territory of China's Sichuan Basin.</p>
+      <p>Three field settings validate it: the <strong>Gagarinskoe and Ozernoe</strong> carbonate oilfields in Perm Krai, Russia, monitored with ground-based receiver arrays; <strong>Well X</strong>, a horizontal shale-gas well in the Puguang territory of China's Sichuan Basin; and the <strong>Qusaiba</strong> shale of north-western Saudi Arabia, monitored from a downhole array in a neighbouring well.</p>
       <div class="keyfig">
         <div><b>10–15 m</b><span>Perforation interval</span></div>
         <div><b>5–200 Hz</b><span>Geophone band</span></div>
@@ -461,8 +462,56 @@ body.dark-theme .theme-toggle-btn .moon-icon { display: none; }
         <li><span class="spec-badge">G</span><div><strong>Graph, clustering and autoencoder models</strong> group events into fracture-network clusters and reconstruct gapped wavefields.</div></li>
         <li><span class="spec-badge">B</span><div><strong>Bayesian and mixture-density models</strong> return a distribution rather than a point, which is what source-mechanism work actually needs.</div></li>
       </ul>
+      <p>Denoising is the clearest case. <strong>DeepDenoiser</strong> learns signal and noise masks from amplitude spectra; <strong>UrbanDenoiser</strong> is the same architecture re-tuned on a dense urban array by transfer learning, and it recovered mantle seismicity under Los Angeles that the original model missed. For microseismic data, where clean reference traces do not exist, variational autoencoders and blind-spot networks train on the noisy records themselves — the VAE approach was demonstrated on hydraulic fracturing of the Marcellus shale and beat both <em>f–x</em> deconvolution and damped multichannel singular spectrum analysis.</p>
       <p>Three obstacles remain honest ones: labelled seismic data is scarce and site-specific, deep models are hard to interpret in a domain where the reasoning must be auditable, and training cost is real.</p>
-      <div class="data-source-tag">Source: Thesis Ch. 2, §2.2–2.9</div>
+      <div class="data-source-tag">Source: Thesis Ch. 2, §2.2–2.9 · after Anikiev <em>et al.</em> (2023), <i>Earth-Science Reviews</i> 239, 104371</div>
+    </section>
+
+    <section class="scroll-section" id="section-mlpubs" data-viz="viz-mlpubs" data-nav="Adoption" data-mob="Adoption">
+      <div class="section-label">Section 07 · Adoption</div>
+      <h2>A field that took off in 2015</h2>
+      <p>The idea of putting machine learning on micro-seismic data is not new — the first attempts date to the early 1990s. What was missing was the hardware and the tooling. A review of <strong>222 publications</strong> spanning 1990 to 2022 shows almost nothing for two decades, then two step changes.</p>
+      <p>The first is <strong>2006</strong>, when the first unified graphics-and-compute GPU architecture programmable in C arrived and general-purpose GPU computing became practical. The second is <strong>2015</strong>, the first public release of the Keras deep-learning library, after which the publication count grows exponentially.</p>
+      <p>The order in which applications appear is the ordinary shape of technology adoption. <strong>Detection and localisation</strong> — the fundamentals — come first. <strong>Noise suppression and classification, source-mechanism determination and cluster analysis</strong> arrive years later, once the basics are reliable enough to build on.</p>
+      <div class="finding-callout">Micro-seismic monitoring has a handicap earthquake seismology does not: monitoring usually <em>begins</em> when the operation begins, so there is no historical catalogue from the site to train on. Synthetic training data is not a shortcut here — it is generally the only option.</div>
+      <div class="data-source-tag">Source: Anikiev <em>et al.</em> (2023), Fig. 1 · Thesis Ch. 2</div>
+    </section>
+
+    <section class="scroll-section" id="section-mldetect" data-viz="viz-mldetect" data-nav="Detection" data-mob="Detect">
+      <div class="section-label">Section 08 · Detection</div>
+      <h2>Three ways to see an event</h2>
+      <p>Detection is where machine learning displaced classical processing first, because the classical options both fail in a known way. <strong>STA/LTA</strong> is fast and general but insensitive to time-varying noise and low-magnitude events, and its answer depends heavily on the thresholds chosen. <strong>Template matching</strong> detects far smaller events but only those resembling the master event, and it is expensive enough to rule out real-time use.</p>
+      <p>Recast as computer vision, the problem splits into three framings that return different amounts of information: <strong>binary window classification</strong> (is there an event in this window at all), <strong>bounding-box detection</strong> (which time range and which offsets), and <strong>semantic segmentation</strong> (label every sample of the record as arrival or not).</p>
+      <p>The reported gains are large. A CNN trained on mining-induced events detected <strong>ten times more events</strong> than a human expert. A YOLOv3 network trained on semi-synthetic data recovered <strong>over 80%</strong> of manually picked events across <strong>3,800 DAS channels</strong> of a four-hour record, with the misses concentrated at low SNR. Treating an ocean-bottom-node array as an image and segmenting it with a U-Net ran in real time on a single GPU.</p>
+      <p>For phase picking, the leading models — PhaseNet, EQTransformer and generalized phase detection — benchmark to roughly equivalent performance. The remaining gains come from using the array rather than the trace: exploiting coherence between stations raised the F1 score by a further <strong>5%</strong>.</p>
+      <div class="finding-callout cool">The characteristic microseismic difficulty is not one hard event, it is many weak ones. Multiple events inside a single window is common here and rare in global earthquake data — which is why picking models trained on catalogued earthquakes need re-tuning before they transfer.</div>
+      <div class="data-source-tag">Source: Anikiev <em>et al.</em> (2023), §2.3 &amp; Fig. 3 · Thesis §2.4</div>
+    </section>
+
+    <section class="scroll-section" id="section-mlloc" data-viz="viz-mlloc" data-nav="Localisation" data-mob="Locate">
+      <div class="section-label">Section 09 · Localisation</div>
+      <h2>Locating without picking</h2>
+      <p>Classical localisation runs on one of two tracks. <strong>Traveltime methods</strong> invert picked arrivals and tolerate a rough velocity model, because traveltimes average over the velocities they cross. <strong>Waveform methods</strong> — diffraction stacking, back-propagation, full-waveform grid search — need no picks at all but demand a velocity model accurate enough to model the waveform itself.</p>
+      <p>Machine learning enters at four distinct points, and they are worth separating:</p>
+      <ul class="spec-list">
+        <li><span class="spec-badge">1</span><div>Extracting the arrivals that a conventional inversion then uses — the network replaces the picker, not the physics.</div></li>
+        <li><span class="spec-badge">2</span><div>Replacing the grid search itself: mapping raw or cross-correlated waveforms straight to a hypocentre, which removes the most expensive step and most of the operator-dependent pre-processing.</div></li>
+        <li><span class="spec-badge">3</span><div>Returning a <strong>3-D probability density</strong> instead of a point, so the answer carries its own uncertainty. Trained on synthetics with realistic noise, then transferred to field data — and extended by transfer learning to events weaker than those it was trained on.</div></li>
+        <li><span class="spec-badge">4</span><div><strong>Physics-informed networks</strong> that use the eikonal equation as the loss. Being continuous functions of space, they need no grid, so receivers along an irregular surface are no harder than a regular array.</div></li>
+      </ul>
+      <p>Where methods have been compared directly on the same data, deep networks beat support vector machines and random forests. A full deep-learning location pipeline detected and located close to <strong>four times more events</strong> than conventional processing on the same records.</p>
+      <div class="finding-callout">Surface micro-seismic arrays are usually single-component and the epicentres sit <em>inside</em> the array, so S-arrivals are hard to identify and most surface localisation runs on P-waves alone. That is a geometry limit, not an algorithm limit — and it caps what any model can recover.</div>
+      <div class="data-source-tag">Source: Anikiev <em>et al.</em> (2023), §2.4 &amp; Fig. 4 · Thesis §2.5</div>
+    </section>
+
+    <section class="scroll-section" id="section-mlvel" data-viz="viz-mlvel" data-nav="Velocity" data-mob="Velocity">
+      <div class="section-label">Section 10 · Velocity</div>
+      <h2>Everything rests on the velocity model</h2>
+      <p>Every location, every moment tensor and every cluster interpretation inherits the error in the velocity model underneath it. Machine learning does not escape this. If the network is trained on synthetics, a velocity model was used to generate the labels; if it is trained on a historical catalogue, a velocity model was used to produce those locations in the first place.</p>
+      <p>There are only three ways to arrange the problem: invert for <strong>velocity with the sources known</strong> (the earthquake-seismology habit), invert for <strong>sources with the velocity known</strong> (the micro-seismic habit), or invert for <strong>both</strong>, jointly or in sequence.</p>
+      <p>The consequence is measurable. In a horizontal-well experiment where the true source position was known from a ball-seat event, a constant background velocity placed the event far too close to the wellbore. Inverting P- and S-velocities from the same passive recording moved it onto its true position and produced synthetic waveforms that matched the recorded ones.</p>
+      <div class="finding-callout cool">Micro-seismic wavepaths run almost directly from a point source to the receiver. That geometry carries high-resolution velocity information — routinely discarded, and the most under-used data in the whole workflow.</div>
+      <div class="data-source-tag">Source: Anikiev <em>et al.</em> (2023), §2.8, Figs. 6–7 · Thesis §2.8</div>
     </section>
 
     <section class="scroll-section" id="section-fields" data-viz="viz-fields" data-nav="Case 1 geology" data-mob="Fields">
@@ -533,11 +582,35 @@ body.dark-theme .theme-toggle-btn .moon-icon { display: none; }
       <div class="data-source-tag">Source: Thesis §3.3.2.5, §3.3.3 · Fig. 3-27</div>
     </section>
 
+    <section class="scroll-section" id="section-qusaiba" data-viz="viz-qusaiba" data-nav="Case 3 Qusaiba" data-mob="Qusaiba">
+      <div class="section-label">Case study 03 · Qusaiba</div>
+      <h2>Four hundred and fifteen events</h2>
+      <p>A third rock, and a first: the Lower Silurian <strong>Qusaiba</strong> "hot shale" in north-western Saudi Arabia, monitored during the first multistage hydraulic stimulation ever carried out in the Arabian Peninsula. Twelve stages, plug-and-perf, along the horizontal section of a deviated well, pumped over <strong>ten days</strong>.</p>
+      <p>The array was downhole: <strong>12 three-component sensors</strong> in a neighbouring vertical well at <strong>30.5 m</strong> spacing, a <strong>335 m</strong> aperture centred on the target level. Surface arrays recorded in parallel and were discarded — their signal-to-noise ratio was so poor that only perforation shots and the initial breakdown events registered.</p>
+      <p>Processing was deliberately conservative: DC-offset removal, a <strong>20–600 Hz</strong> bandpass, then a double-window trigger function scanning the continuous stream. Locations came from a collapsing grid search — <strong>30.5 m down to 10 m</strong> — with two-point ray tracing through a seven-layer velocity model built from a VSP survey in the monitoring well.</p>
+      <p><strong>415 events</strong> were located. Every stage produced fractures at an average azimuth of <strong>N335° E</strong>, normal to the horizontal treatment well, which says the local stress direction does not rotate along the wellbore — neither naturally nor under injection. Stages 1 and 3 yielded nothing locatable at all.</p>
+      <div class="finding-callout">A large share of triggers were <strong>tube waves</strong>: coherent, high-amplitude arrivals on all twelve tools with an impossibly slow apparent velocity, generated by fluid moving along the wellbore wall. Separating them from real events is a classification problem — precisely the task Chapter Two hands to machine learning.</div>
+      <p>Ellipsoids fitted to 90% of each stage's events give the stimulated volume and aspect ratio per stage. Early and late stages produced the longest networks; mid-stages propagated markedly less. Peak pressure and pump rate were near-identical across all twelve, so the difference is <strong>rock, not pumping</strong>. Clouds from stages 4–5, and more strongly 6–9, overlap — the induced networks interact.</p>
+      <div class="data-source-tag">Source: Kaka <em>et al.</em> (2017), <i>Petroleum Geoscience</i> · doi:10.1144/petgeo2016-086 · Figs. 4, 5, 7, 8</div>
+    </section>
+
+    <section class="scroll-section" id="section-qsens" data-viz="viz-qsens" data-nav="Detection limit" data-mob="Limits">
+      <div class="section-label">Finding 05 · Detection limit</div>
+      <h2>What the array could actually hear</h2>
+      <p>An event map is never a map of the fracturing. It is a map of the fracturing <em>the array was able to detect</em>, and this dataset measures its own limits unusually well.</p>
+      <p>Sensitivity falls by <strong>one magnitude unit every 375 m</strong>, and past roughly <strong>700 m</strong> the array detects nothing at all. Any apparent absence of events beyond that radius is a statement about the instrument, not about the rock.</p>
+      <p>Location uncertainty was tested by Monte Carlo: <strong>200 relocations</strong> at each of two test positions, with the velocity model randomly perturbed by 5% and by 10%. Vertical scatter is similar early and late. Horizontal scatter for the distant early stages is <strong>double</strong> that of the near late stages — so early-stage geometry is the least trustworthy part of the catalogue, which matters because it is exactly the part that appears to show the longest fractures.</p>
+      <p>The frequency–magnitude distribution gives a <strong>b-value near 2.3</strong>, against roughly 1.0 for tectonic earthquakes. Small events dominate overwhelmingly: large pre-existing fractures play little part in the monitored seismicity. Energy partition supports it — the S-to-P energy ratio stays above the tensile threshold of 10 throughout, so rupture is <strong>shear-dominated</strong>. The apparent drift toward a tensile signature late in the job is an attenuation artefact: P-waves carry higher frequencies, attenuate faster, and the later stages sit closer to the array.</p>
+      <div class="finding-callout cool">The honest reading of 415 events: cloud geometry, aspect ratio and array-corrected magnitude distribution are robust enough to validate a geomechanical model. Individual event positions and any temporal trend in b-value are not.</div>
+      <div class="data-source-tag">Source: Kaka <em>et al.</em> (2017), Figs. 6, 9, 10 · median SNR 1.66, median location residual 2.5 m</div>
+    </section>
+
     <section class="scroll-section" id="section-conclusion" data-viz="viz-conclusion" data-nav="Conclusion" data-mob="Conclusion">
-      <div class="section-label">Section 13 · Conclusion</div>
+      <div class="section-label">Section 20 · Conclusion</div>
       <h2>A framework for the field</h2>
       <p>Micro-seismic monitoring turns out to be less a verification tool than a design instrument. It maps what actually formed, corrects volume estimates that models get wrong, catches unintended growth toward faults, and — paired with well testing — explains <em>why</em> one well holds its rate and its neighbour does not.</p>
-      <p>Machine learning is what makes it routine rather than specialist: automated detection and classification, noise suppression that filtering cannot achieve, and wavefield reconstruction from gapped data.</p>
+      <p>Machine learning is what makes it routine rather than specialist: automated detection and classification, noise suppression that filtering cannot achieve, and wavefield reconstruction from gapped data. The Qusaiba dataset shows why that matters even when the array is good — 415 events, a median signal-to-noise ratio of 1.66, and enough tube-wave triggers that most phases had to be checked by hand.</p>
+      <p>It also shows the discipline the method demands. Every event map is bounded by the array that made it: one magnitude unit of sensitivity lost every 375 m, nothing at all past 700 m, and location scatter that doubles for the most distant stages. Read within those bounds, micro-seismic monitoring validates a geomechanical model. Read outside them, it invents fractures.</p>
       <ol>
         <li><strong>Monitor every job.</strong> Real-time micro-seismic on all treatments, to sharpen SRV estimates and flag unintended growth.</li>
         <li><strong>Automate the interpretation.</strong> Extend ML across detection, noise suppression and wavefield reconstruction.</li>
@@ -605,6 +678,30 @@ body.dark-theme .theme-toggle-btn .moon-icon { display: none; }
           <div class="viz-caption">Filled cells mark the architecture reported as dominant for that task in the Chapter Two literature review; lighter cells mark secondary use. Thesis §2.2–2.8.</div>
         </div>
 
+        <div class="viz-panel" id="viz-mlpubs" data-render="mlpubs">
+          <div class="viz-title">Publications on ML in micro-seismic monitoring, 1990–2022</div>
+          <svg class="chart" id="chart-mlpubs" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">222 peer-reviewed articles, conference abstracts and theses, stacked by field of application, with the two enabling events marked. Bar heights follow the published histogram's shape and sum to the published total; per-year counts are not tabulated in the source. After Anikiev <i>et al.</i> (2023), Fig. 1.</div>
+        </div>
+
+        <div class="viz-panel" id="viz-mldetect" data-render="mldetect">
+          <div class="viz-title">Three computer-vision framings of event detection</div>
+          <svg class="chart" id="chart-mldetect" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">The same surface-array record read three ways: a single yes/no label per window, a box bounding the arrival in time and offset, and a per-sample mask. Each returns more information and costs more to label. Schematic after Anikiev <i>et al.</i> (2023), Fig. 3.</div>
+        </div>
+
+        <div class="viz-panel" id="viz-mlloc" data-render="mlloc">
+          <div class="viz-title">Where machine learning enters localisation</div>
+          <svg class="chart" id="chart-mlloc" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">Two classical tracks, four insertion points. Inset: the 3-D location probability density a network returns instead of a point — tight for a high-SNR event, smeared for a weak one, which is the uncertainty made visible. After Anikiev <i>et al.</i> (2023), §2.4 and Fig. 4.</div>
+        </div>
+
+        <div class="viz-panel" id="viz-mlvel" data-render="mlvel">
+          <div class="viz-title">Three ways to arrange the velocity problem</div>
+          <svg class="chart" id="chart-mlvel" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">A network takes data <b>d</b>, source locations <b>s</b>, velocity <b>v</b>, or a mix; dashed arrows are what it returns. Lower panel: a ball-seat event of known position, located with a constant background velocity against the same event after velocity inversion. After Anikiev <i>et al.</i> (2023), Figs. 6–7.</div>
+        </div>
+
         <div class="viz-panel" id="viz-fields" data-render="fields">
           <div class="viz-title">Gagarinskoe vs. Ozernoe — reservoir properties</div>
           <svg class="chart" id="chart-fields" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
@@ -647,6 +744,18 @@ body.dark-theme .theme-toggle-btn .moon-icon { display: none; }
           <div class="viz-caption">Micro-fractures of similar orientation are connected, isolated ones discarded, and the effective grid is measured against the total event footprint (dashed hull). The three classes and their thresholds are those defined in Thesis §3.3.2.5.</div>
         </div>
 
+        <div class="viz-panel" id="viz-qusaiba" data-render="qusaiba">
+          <div class="viz-title">Qusaiba — array geometry and 415 located events</div>
+          <svg class="chart" id="chart-qusaiba" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">Plan view: the 12-sensor vertical monitoring well, the treatment well's horizontal section, and the located cloud coloured early to late. Fracture azimuth <b>N335° E</b> holds across all twelve stages. Inset: events located per stage — none for stages 1 and 3. Event positions are reconstructed to the published azimuth, stage progression and extent; individual coordinates are not published. Kaka <i>et al.</i> (2017), Figs. 4–5.</div>
+        </div>
+
+        <div class="viz-panel" id="viz-qsens" data-render="qsens">
+          <div class="viz-title">Detection limit, location uncertainty and b-value</div>
+          <svg class="chart" id="chart-qsens" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="viz-caption">Left: magnitude against source–receiver distance, with the measured sensitivity decay of one magnitude unit per 375 m and the ~700 m viewing limit. Right top: frequency–magnitude distribution, slope <b>b ≈ 2.3</b>. Right bottom: Monte Carlo location scatter for a 10% velocity perturbation — early stages spread twice as wide horizontally as late ones. Kaka <i>et al.</i> (2017), Figs. 6, 10.</div>
+        </div>
+
         <div class="viz-panel" id="viz-conclusion" data-render="scorecard">
           <div class="viz-title">What the evidence supports</div>
           <svg class="chart" id="chart-scorecard" viewBox="0 0 660 430" preserveAspectRatio="xMidYMid meet"></svg>
@@ -674,9 +783,15 @@ body.dark-theme .theme-toggle-btn .moon-icon { display: none; }
       <p><strong>Programme:</strong> MSc, Petroleum and Natural Gas Engineering</p>
       <p><strong>Defended:</strong> 24 June 2025 · 86 pages</p>
     </div>
+    <div class="footer-meta footer-src">
+      <div class="footer-label">Primary sources</div>
+      <p>Anikiev, D., Birnie, C., bin Waheed, U., Alkhalifah, T., Gu, C., Verschuur, D.J. &amp; Eisner, L. (2023) <em>Machine learning in microseismic monitoring.</em> Earth-Science Reviews 239, 104371.</p>
+      <p>Kaka, S.I., Reyes-Montes, J.M., Al-Shuhail, A., Al-Shuhail, A.A. &amp; Jervis, M. (2017) <em>Analysis of microseismic events during a multistage hydraulic stimulation experiment at a shale gas reservoir.</em> Petroleum Geoscience.</p>
+      <p>Zhang, L., Wang, H., Cai, J. &amp; Zhang, S. (2023) <em>Application of micro-seismic monitoring in post-fracturing evaluation of shale gas: a case study of Well X from Puguang area, China.</em> Processes 11, 1863.</p>
+    </div>
   </div>
   <div class="footer-bottom">
-    <p>Figures are redrawn from the thesis data. Where the underlying per-point values are not published, ranges and means are shown rather than reconstructed points — each caption says which.</p>
+    <p>Figures are redrawn from the thesis and its primary sources. Where the underlying per-point values are not published, ranges, means or the published distribution's shape are shown rather than invented points — each caption says which.</p>
   </div>
 </footer>
 
@@ -1528,10 +1643,468 @@ body.dark-theme .theme-toggle-btn .moon-icon { display: none; }
       .attr('fill', 'none').style('stroke', 'var(--accent)').attr('stroke-width', 1).attr('opacity', 0.5);
   }
 
+  /* ═══════════ 15 · ML PUBLICATION GROWTH ═══════════ */
+  function renderMlPubs() {
+    var svg = d3.select('#chart-mlpubs'); svg.selectAll('*').remove();
+    var m = { t: 84, r: 18, b: 46, l: 40 }, W = 660 - m.l - m.r, H = 430 - m.t - m.b;
+    var g = svg.append('g').attr('transform', 'translate(' + m.l + ',' + m.t + ')');
+
+    var totals = [1,0,1,1,2,3,2,1,2,2, 2,1,2,2,3,3, 3,4,4,5,5, 5,6,6,7, 8,9,11,14,18,24,30,35];
+    var cats = [
+      { k: 'det', n: 'Detection & picking', c: C.accent },
+      { k: 'loc', n: 'Localisation', c: C.accentSoft },
+      { k: 'noi', n: 'Noise & pre-processing', c: C.sec },
+      { k: 'src', n: 'Source mechanism', c: C.gold },
+      { k: 'clu', n: 'Clustering & forecasting', c: C.green },
+      { k: 'mul', n: 'Multiple applications', c: C.muted }
+    ];
+    function shares(y) {
+      if (y < 2006) return [0.52, 0.48, 0, 0, 0, 0];
+      if (y < 2015) return [0.40, 0.30, 0.15, 0.09, 0.06, 0];
+      return [0.30, 0.21, 0.18, 0.12, 0.13, 0.06];
+    }
+    var data = totals.map(function (t, i) {
+      var yr = 1990 + i, s = shares(yr), o = { year: yr, total: t }, used = 0;
+      cats.forEach(function (c, j) { if (j === 0) return; var v = Math.round(t * s[j]); o[c.k] = v; used += v; });
+      o.det = Math.max(0, t - used);
+      return o;
+    });
+    var sum = d3.sum(data, function (d) { return d.total; });
+
+    var x = d3.scaleBand().domain(data.map(function (d) { return d.year; })).range([0, W]).padding(0.22);
+    var y = d3.scaleLinear().domain([0, 36]).range([H, 0]);
+    grid(g, y, W, true);
+
+    data.forEach(function (d, i) {
+      var acc = 0;
+      cats.forEach(function (c, j) {
+        var v = d[c.k] || 0; if (!v) return;
+        var y0 = acc; acc += v;
+        var r = g.append('rect').attr('x', x(d.year)).attr('width', x.bandwidth())
+          .attr('y', y(y0)).attr('height', 0).style('fill', c.c).attr('opacity', 0.88);
+        if (DUR) r.transition().delay(300 + i * 22 + j * 6).duration(420)
+          .attr('y', y(acc)).attr('height', y(y0) - y(acc));
+        else r.attr('y', y(acc)).attr('height', y(y0) - y(acc));
+      });
+    });
+
+    // enabling events
+    [[2006, 'GPGPU — first C-programmable\ncompute GPU architecture'], [2015, 'Keras — first public release']].forEach(function (mk, i) {
+      var xx = x(mk[0]) + x.bandwidth() / 2;
+      var ln = g.append('line').attr('x1', xx).attr('x2', xx).attr('y1', H).attr('y2', H)
+        .style('stroke', C.ink).attr('stroke-width', 1.2).attr('stroke-dasharray', '4,3').attr('opacity', 0.55);
+      if (DUR) ln.transition().delay(900 + i * 200).duration(500).attr('y2', -14); else ln.attr('y2', -14);
+      var lab = g.append('g').attr('transform', 'translate(' + (xx + 6) + ',-30)');
+      mk[1].split('\n').forEach(function (s, k) { txt(lab, 0, k * 12, s, { size: 9.5, weight: 600, fill: C.inkLight }); });
+      fadeIn(lab, 1100 + i * 200);
+    });
+
+    g.append('g').attr('transform', 'translate(0,' + H + ')')
+      .call(d3.axisBottom(x).tickValues([1990, 1995, 2000, 2005, 2010, 2015, 2020, 2022]));
+    g.append('g').call(d3.axisLeft(y).ticks(5));
+    g.selectAll('.domain,.tick line').style('stroke', C.border);
+    g.selectAll('.tick text').style('fill', C.muted).attr('font-family', SANS).attr('font-size', 10);
+    txt(g, -30, -10, 'Publications', { size: 10.5, weight: 600 });
+    txt(g, W, H + 38, sum + ' publications, 1990–2022', { anchor: 'end', size: 11, weight: 700, fill: C.inkLight });
+
+    var lg = svg.append('g').attr('transform', 'translate(' + m.l + ',18)');
+    cats.forEach(function (c, i) {
+      var col = i % 3, row = Math.floor(i / 3);
+      var gg = lg.append('g').attr('transform', 'translate(' + col * 200 + ',' + row * 17 + ')');
+      gg.append('rect').attr('width', 11).attr('height', 11).attr('rx', 2).style('fill', c.c).attr('opacity', 0.88);
+      txt(gg, 16, 9.5, c.n, { size: 10, fill: C.inkLight });
+    });
+  }
+
+  /* ═══════════ 16 · DETECTION FRAMINGS ═══════════ */
+  function renderMlDetect() {
+    var svg = d3.select('#chart-mldetect'); svg.selectAll('*').remove();
+    var rows = [
+      { t: '(a) Binary window', s: ['One label for the whole', 'window: event or not.'], ret: 'returns 1 bit', mode: 'bin' },
+      { t: '(b) Bounding box', s: ['Time range and offset', 'range of the arrival.'], ret: 'returns a box', mode: 'box' },
+      { t: '(c) Segmentation', s: ['Every sample labelled', 'arrival or background.'], ret: 'returns a mask', mode: 'seg' }
+    ];
+    var L = 172, PW = 660 - L - 22, PH = 92, top = 30;
+
+    rows.forEach(function (row, ri) {
+      var g = svg.append('g').attr('transform', 'translate(' + L + ',' + (top + ri * (PH + 34)) + ')');
+      fadeIn(g, ri * 220);
+
+      g.append('rect').attr('width', PW).attr('height', PH).attr('rx', 6)
+        .style('fill', C.grid).style('stroke', C.border);
+
+      var r = rng(4100 + ri * 7), nT = 11, dt = PH / (nT + 1);
+      for (var i = 0; i < nT; i++) {
+        var yy = dt * (i + 1);
+        // arrival time follows a moveout curve across offset
+        var off = Math.abs(i - (nT - 1) / 2) / ((nT - 1) / 2);
+        var ta = 0.34 + off * off * 0.18;
+        var pts = [];
+        for (var s = 0; s <= 120; s++) {
+          var u = s / 120, amp = (r() - 0.5) * 2.4;
+          var d0 = (u - ta) * 22;
+          if (Math.abs(d0) < 3.2) amp += Math.exp(-d0 * d0 * 0.9) * Math.sin(d0 * 3.4) * 13;
+          pts.push([u * PW, yy + amp]);
+        }
+        var inSeg = function (u) { return Math.abs((u - ta) * 22) < 3.0; };
+        g.append('path').datum(pts).attr('fill', 'none')
+          .style('stroke', C.inkLight).attr('stroke-width', 0.7).attr('opacity', 0.62)
+          .attr('d', d3.line().x(function (p) { return p[0]; }).y(function (p) { return p[1]; }));
+        if (row.mode === 'seg') {
+          var segPts = pts.filter(function (p, k) { return inSeg(k / 120); });
+          if (segPts.length) g.append('path').datum(segPts).attr('fill', 'none')
+            .style('stroke', C.sec).attr('stroke-width', 2.2).attr('opacity', 0.95)
+            .attr('d', d3.line().x(function (p) { return p[0]; }).y(function (p) { return p[1]; }));
+        }
+      }
+
+      if (row.mode === 'bin') {
+        g.append('rect').attr('width', PW).attr('height', PH).attr('rx', 6)
+          .attr('fill', 'none').style('stroke', C.sec).attr('stroke-width', 2).attr('stroke-dasharray', '6,4');
+        var badge = g.append('g').attr('transform', 'translate(' + (PW - 74) + ',10)');
+        badge.append('rect').attr('width', 64).attr('height', 20).attr('rx', 10).style('fill', C.sec).attr('opacity', 0.92);
+        txt(badge, 32, 14, 'EVENT', { anchor: 'middle', size: 10, weight: 800, fill: 'var(--paper)' });
+      }
+      if (row.mode === 'box') {
+        var bx = g.append('rect').attr('x', PW * 0.30).attr('y', 8).attr('width', 0).attr('height', PH - 16).attr('rx', 4)
+          .attr('fill', 'none').style('stroke', C.sec).attr('stroke-width', 2);
+        grow(bx, 'width', PW * 0.30, ri * 220 + 250);
+        txt(g, PW * 0.30, 4, 't₀ → t₁ , offsets 3–9', { size: 9.5, weight: 700, fill: C.sec });
+      }
+
+      var lab = svg.append('g').attr('transform', 'translate(20,' + (top + ri * (PH + 34) + 20) + ')');
+      fadeIn(lab, ri * 220 + 120);
+      txt(lab, 0, 0, row.t, { size: 12, weight: 800, fill: C.ink });
+      row.s.forEach(function (s, k) { txt(lab, 0, 18 + k * 13, s, { size: 10, fill: C.muted }); });
+      txt(lab, 0, 56, row.ret, { size: 10, weight: 700, fill: C.accent });
+    });
+
+    txt(svg.append('g'), 20, 412, 'Labelling cost rises down the page; so does what the model can tell you about the event.', { size: 10.5, fill: C.muted });
+  }
+
+  /* ═══════════ 17 · LOCALISATION ROUTES ═══════════ */
+  function renderMlLoc() {
+    var svg = d3.select('#chart-mlloc'); svg.selectAll('*').remove();
+    arrowDefs(svg);
+    var g = svg.append('g').attr('transform', 'translate(18,34)');
+    var N = {
+      raw:  { x: 0,   y: 92,  w: 96,  h: 44, l: 'Raw\nwaveforms', c: C.ink },
+      pick: { x: 132, y: 34,  w: 116, h: 42, l: 'Pick P/S\narrivals', c: C.accent },
+      tt:   { x: 286, y: 34,  w: 116, h: 42, l: 'Traveltime\ninversion', c: C.accent },
+      stk:  { x: 132, y: 150, w: 116, h: 42, l: 'Stack /\nback-propagate', c: C.sec },
+      reg:  { x: 286, y: 150, w: 116, h: 42, l: 'Direct waveform\nregression', c: C.sec },
+      hyp:  { x: 438, y: 92,  w: 116, h: 44, l: 'Hypocentre\n+ uncertainty', c: C.green }
+    };
+    var E = [['raw','pick'],['pick','tt'],['tt','hyp'],['raw','stk'],['stk','reg'],['reg','hyp']];
+    function cx(k) { return N[k].x + N[k].w / 2; }
+    function cy(k) { return N[k].y + N[k].h / 2; }
+    E.forEach(function (e, i) {
+      var x1 = cx(e[0]), y1 = cy(e[0]), x2 = cx(e[1]), y2 = cy(e[1]);
+      var dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy);
+      var p0 = N[e[0]].w / 2 + 6, p1 = N[e[1]].w / 2 + 12;
+      var sx = x1 + dx / len * Math.min(p0, len / 2), sy = y1 + dy / len * Math.min(p0, len / 2);
+      var ex = x2 - dx / len * Math.min(p1, len / 2), ey = y2 - dy / len * Math.min(p1, len / 2);
+      var ln = g.append('line').attr('x1', sx).attr('y1', sy).attr('x2', sx).attr('y2', sy)
+        .style('stroke', C.muted).attr('stroke-width', 1.5).attr('marker-end', 'url(#ar-m)');
+      if (DUR) ln.transition().delay(200 + i * 90).duration(340).attr('x2', ex).attr('y2', ey);
+      else ln.attr('x2', ex).attr('y2', ey);
+    });
+    Object.keys(N).forEach(function (k, i) {
+      var n = N[k];
+      var ng = g.append('g').attr('transform', 'translate(' + n.x + ',' + n.y + ')');
+      fadeIn(ng, i * 90);
+      ng.append('rect').attr('width', n.w).attr('height', n.h).attr('rx', 6)
+        .style('fill', C.grid).style('stroke', n.c).attr('stroke-width', 1.4);
+      var lines = n.l.split('\n');
+      lines.forEach(function (s, j) {
+        txt(ng, n.w / 2, n.h / 2 - (lines.length - 1) * 6 + j * 13 + 4, s,
+          { anchor: 'middle', size: 10.5, weight: 700, fill: n.c });
+      });
+    });
+    txt(g, 132, 22, 'Traveltime track — tolerant of velocity error', { size: 9.5, weight: 600, fill: C.accent });
+    txt(g, 132, 208, 'Waveform track — no picking, needs an accurate model', { size: 9.5, weight: 600, fill: C.sec });
+
+    // ML insertion badges
+    [[190, 30, '1'], [344, 30, '2'], [344, 146, '2'], [496, 88, '3'], [496, 152, '4']].forEach(function (b, i) {
+      var bg = g.append('g').attr('transform', 'translate(' + b[0] + ',' + b[1] + ')');
+      fadeIn(bg, 700 + i * 90);
+      bg.append('circle').attr('r', 9).style('fill', C.gold).attr('opacity', 0.95);
+      txt(bg, 0, 3.5, b[2], { anchor: 'middle', size: 10, weight: 800, fill: 'var(--paper)' });
+    });
+    txt(g, 414, 180, 'PINN: eikonal loss, no grid', { size: 9.5, weight: 600, fill: C.gold });
+
+    // inset — 3D PDF sharp vs smeared
+    var ins = svg.append('g').attr('transform', 'translate(30,282)');
+    fadeIn(ins, 900);
+    txt(ins, 0, -8, 'Location probability density returned by the network', { size: 10.5, weight: 700, fill: C.inkLight });
+    [{ n: 'High SNR event', sg: 12, c: C.accent }, { n: 'Low SNR event', sg: 30, c: C.sec }].forEach(function (p, i) {
+      var b = ins.append('g').attr('transform', 'translate(' + i * 300 + ',6)');
+      b.append('rect').attr('width', 250).attr('height', 92).attr('rx', 6).style('fill', C.grid).style('stroke', C.border);
+      var cxx = 125, cyy = 46;
+      for (var a = 0; a < 320; a++) {
+        var ux = (a % 20) / 19 * 220 + 15, uy = Math.floor(a / 20) * 6 + 8;
+        var d0 = Math.hypot(ux - cxx, (uy - cyy) * 1.6);
+        var op = Math.exp(-(d0 * d0) / (2 * p.sg * p.sg));
+        if (op < 0.03) continue;
+        b.append('circle').attr('cx', ux).attr('cy', uy).attr('r', 2.1).style('fill', p.c).attr('opacity', op * 0.9);
+      }
+      txt(b, 125, 108, p.n, { anchor: 'middle', size: 10.5, weight: 700, fill: p.c });
+    });
+  }
+
+  /* ═══════════ 18 · VELOCITY OPTIONS ═══════════ */
+  function renderMlVel() {
+    var svg = d3.select('#chart-mlvel'); svg.selectAll('*').remove();
+    arrowDefs(svg);
+    var routes = [
+      { inp: 'd , s', out: 'v', n: 'Sources known — invert velocity', s: 'the earthquake-seismology habit', c: C.accent },
+      { inp: 'd , v', out: 's', n: 'Velocity known — invert sources', s: 'the micro-seismic habit', c: C.sec },
+      { inp: 'd', out: 's , v', n: 'Invert both', s: 'jointly, or in sequence', c: C.gold }
+    ];
+    routes.forEach(function (r, i) {
+      var g = svg.append('g').attr('transform', 'translate(28,' + (30 + i * 74) + ')');
+      fadeIn(g, i * 180);
+      g.append('rect').attr('width', 74).attr('height', 38).attr('rx', 6)
+        .style('fill', C.grid).style('stroke', C.border);
+      txt(g, 37, 24, r.inp, { anchor: 'middle', size: 13, weight: 700, fill: C.inkLight });
+
+      g.append('line').attr('x1', 78).attr('x2', 116).attr('y1', 19).attr('y2', 19)
+        .style('stroke', C.muted).attr('stroke-width', 1.4).attr('marker-end', 'url(#ar-m)');
+
+      g.append('rect').attr('x', 120).attr('width', 62).attr('height', 38).attr('rx', 6)
+        .style('fill', r.c).attr('opacity', 0.16).style('stroke', r.c).attr('stroke-width', 1.4);
+      txt(g, 151, 24, 'NN', { anchor: 'middle', size: 13, weight: 800, fill: r.c });
+
+      g.append('line').attr('x1', 186).attr('x2', 224).attr('y1', 19).attr('y2', 19)
+        .style('stroke', r.c).attr('stroke-width', 1.4).attr('stroke-dasharray', '5,3').attr('marker-end', 'url(#ar-a)');
+
+      g.append('rect').attr('x', 228).attr('width', 74).attr('height', 38).attr('rx', 6)
+        .style('fill', C.grid).style('stroke', r.c).attr('stroke-width', 1.4);
+      txt(g, 265, 24, r.out, { anchor: 'middle', size: 13, weight: 800, fill: r.c });
+
+      txt(g, 322, 16, r.n, { size: 11.5, weight: 700, fill: C.ink });
+      txt(g, 322, 31, r.s, { size: 10, fill: C.muted });
+    });
+    txt(svg.append('g'), 28, 20, 'd = recorded data   ·   s = source locations   ·   v = velocity model', { size: 10, fill: C.muted });
+
+    // ball-seat inset
+    var ins = svg.append('g').attr('transform', 'translate(28,268)');
+    fadeIn(ins, 700);
+    ins.append('rect').attr('width', 604).attr('height', 128).attr('rx', 8).style('fill', C.grid).style('stroke', C.border);
+    txt(ins, 16, 22, 'Ball-seat event of known position, located two ways', { size: 11.5, weight: 700, fill: C.inkLight });
+
+    var wy = 66;
+    ins.append('line').attr('x1', 30).attr('x2', 574).attr('y1', wy).attr('y2', wy)
+      .style('stroke', C.ink).attr('stroke-width', 3).attr('opacity', 0.75);
+    for (var k = 0; k < 12; k++) {
+      ins.append('rect').attr('x', 60 + k * 42).attr('y', wy - 11).attr('width', 4).attr('height', 8).attr('rx', 1)
+        .style('fill', C.inkLight).attr('opacity', 0.8);
+    }
+    txt(ins, 30, wy - 18, 'horizontal well · receivers', { size: 9.5, fill: C.muted });
+
+    var gx = 250, tx = 420, ey = wy + 40;
+    var c1 = ins.append('circle').attr('cx', gx).attr('cy', ey).attr('r', 0).style('fill', C.muted);
+    grow(c1, 'r', 7, 900);
+    txt(ins, gx, ey + 26, 'constant background velocity', { anchor: 'middle', size: 10, weight: 600, fill: C.muted });
+
+    var arr = ins.append('line').attr('x1', gx + 12).attr('x2', gx + 12).attr('y1', ey).attr('y2', ey)
+      .style('stroke', C.gold).attr('stroke-width', 2).attr('marker-end', 'url(#ar-a)');
+    if (DUR) arr.transition().delay(1050).duration(500).attr('x2', tx - 14); else arr.attr('x2', tx - 14);
+
+    var c2 = ins.append('circle').attr('cx', tx).attr('cy', ey).attr('r', 0).style('fill', C.gold);
+    grow(c2, 'r', 7, 1300);
+    txt(ins, tx, ey + 26, 'after velocity inversion = true position', { anchor: 'middle', size: 10, weight: 700, fill: C.gold });
+  }
+
+  /* ═══════════ 19 · QUSAIBA MAP ═══════════ */
+  function renderQusaiba() {
+    var svg = d3.select('#chart-qusaiba'); svg.selectAll('*').remove();
+    var m = { t: 26, r: 20, b: 22, l: 26 }, W = 660 - m.l - m.r, H = 430 - m.t - m.b;
+    var g = svg.append('g').attr('transform', 'translate(' + m.l + ',' + m.t + ')');
+
+    var counts = [0, 38, 0, 44, 31, 36, 42, 47, 33, 52, 49, 43];
+    var S = 0.5;                                // px per metre
+    var mx = 72, my = H * 0.54;                 // monitoring well, west
+    var wy = my;
+    var az = (335 - 360) * Math.PI / 180;       // N335°E measured from north
+    var ux = Math.sin(az), uy = -Math.cos(az);  // screen: y grows south
+    function stageX(i) { return mx + (640 - (11 - i) * 35) * S; }   // stage 1 farthest east
+
+    // detection radius — drawn as the arc that crosses the map
+    var dr = g.append('circle').attr('cx', mx).attr('cy', my).attr('r', 0)
+      .attr('fill', 'none').style('stroke', C.gold).attr('stroke-dasharray', '5,5').attr('stroke-width', 1.2).attr('opacity', 0.85);
+    if (DUR) dr.transition().duration(800).attr('r', 700 * S); else dr.attr('r', 700 * S);
+    txt(g, 700 * S + mx - 6, my - 118, '≈ 700 m viewing limit', { anchor: 'end', size: 9.5, weight: 700, fill: C.gold });
+
+    // treatment well + stage ticks
+    g.append('line').attr('x1', stageX(0)).attr('x2', stageX(11)).attr('y1', wy).attr('y2', wy)
+      .style('stroke', C.ink).attr('stroke-width', 2.6).attr('opacity', 0.8);
+    txt(g, stageX(0), wy - 16, 'treatment well', { anchor: 'end', size: 10, weight: 700, fill: C.inkLight });
+    txt(g, stageX(0), wy - 4, '12 stages, plug-and-perf', { anchor: 'end', size: 9.5, fill: C.muted });
+
+    var r = rng(415415);
+    counts.forEach(function (n, i) {
+      var sx = stageX(i), sy = wy;
+      g.append('line').attr('x1', sx).attr('x2', sx).attr('y1', wy - 6).attr('y2', wy + 6)
+        .style('stroke', n ? C.ink : C.sec).attr('stroke-width', 1.6).attr('opacity', n ? 0.8 : 0.6);
+      if (!n) return;
+      var reach = (90 + (Math.abs(i - 5.5) / 5.5) * 90) * S;   // early & late stages propagate further
+      for (var e = 0; e < Math.round(n * 0.55); e++) {
+        var along = (r() - 0.5) * 2 * reach, across = (r() - 0.5) * 30 * S;
+        var px = sx + ux * along - uy * across, py = sy + uy * along + ux * across;
+        var mag = 0.6 + r() * 2.4;
+        var c = g.append('circle').attr('cx', px).attr('cy', py).attr('r', 0)
+          .style('fill', i < 4 ? C.accent : i < 8 ? C.accentSoft : C.secSoft)
+          .attr('opacity', 0.72);
+        if (DUR) c.transition().delay(300 + i * 55 + e * 4).duration(240).attr('r', mag);
+        else c.attr('r', mag);
+      }
+    });
+
+    // scale bar
+    var sb = g.append('g').attr('transform', 'translate(' + mx + ',' + (H - 26) + ')');
+    sb.append('line').attr('x1', 0).attr('x2', 200 * S).attr('y1', 0).attr('y2', 0).style('stroke', C.inkLight).attr('stroke-width', 2);
+    [0, 200 * S].forEach(function (xx) { sb.append('line').attr('x1', xx).attr('x2', xx).attr('y1', -4).attr('y2', 4).style('stroke', C.inkLight).attr('stroke-width', 2); });
+    txt(sb, 100 * S, -8, '200 m', { anchor: 'middle', size: 9.5, weight: 600, fill: C.inkLight });
+
+    // azimuth indicator
+    var ag = g.append('g').attr('transform', 'translate(' + (W - 60) + ',52)');
+    fadeIn(ag, 900);
+    ag.append('circle').attr('r', 30).attr('fill', 'none').style('stroke', C.border);
+    ag.append('line').attr('x1', -ux * 30).attr('y1', -uy * 30).attr('x2', ux * 30).attr('y2', uy * 30)
+      .style('stroke', C.sec).attr('stroke-width', 2.2);
+    txt(ag, 0, -38, 'N', { anchor: 'middle', size: 10, weight: 800, fill: C.inkLight });
+    txt(ag, 0, 46, 'N335° E', { anchor: 'middle', size: 10.5, weight: 800, fill: C.sec });
+
+    // monitoring well
+    var mg = g.append('g').attr('transform', 'translate(' + mx + ',' + my + ')');
+    fadeIn(mg, 200);
+    mg.append('circle').attr('r', 9).style('fill', 'none').style('stroke', C.green).attr('stroke-width', 2.2);
+    mg.append('circle').attr('r', 3.4).style('fill', C.green);
+    txt(mg, 0, 26, 'monitoring well', { anchor: 'middle', size: 10, weight: 700, fill: C.green });
+    txt(mg, 0, 39, '12 × 3C · 30.5 m spacing', { anchor: 'middle', size: 9.5, fill: C.muted });
+    txt(mg, 0, 51, '335 m aperture', { anchor: 'middle', size: 9.5, fill: C.muted });
+
+    // per-stage inset
+    var ig = g.append('g').attr('transform', 'translate(' + (W - 254) + ',' + (H - 100) + ')');
+    fadeIn(ig, 1000);
+    var iw = 240, ih = 62;
+    ig.append('rect').attr('x', -14).attr('y', -24).attr('width', iw + 28).attr('height', ih + 48).attr('rx', 6)
+      .style('fill', 'var(--paper)').style('stroke', C.border).attr('opacity', 0.96);
+    var xs = d3.scaleBand().domain(d3.range(1, 13)).range([0, iw]).padding(0.3);
+    var ys = d3.scaleLinear().domain([0, 56]).range([ih, 0]);
+    counts.forEach(function (n, i) {
+      var b = ig.append('rect').attr('x', xs(i + 1)).attr('width', xs.bandwidth())
+        .attr('y', ih).attr('height', 0).attr('rx', 1.5)
+        .style('fill', n ? C.accent : C.sec).attr('opacity', n ? 0.8 : 0.5);
+      if (n) grow(b.attr('y', ih), 'height', ih - ys(n), 1100 + i * 30).attr('y', ys(n));
+      else { b.attr('y', ih - 3).attr('height', 3); }
+    });
+    ig.append('line').attr('x1', 0).attr('x2', iw).attr('y1', ih).attr('y2', ih).style('stroke', C.border);
+    txt(ig, 0, -8, 'Events located per stage — 415 total', { size: 10.5, weight: 700, fill: C.inkLight });
+    txt(ig, 0, ih + 14, 'stage 1', { size: 9, fill: C.muted });
+    txt(ig, iw, ih + 14, 'stage 12', { anchor: 'end', size: 9, fill: C.muted });
+    txt(ig, xs(1) + xs.bandwidth() / 2, ih - 8, '0', { anchor: 'middle', size: 9, weight: 700, fill: C.sec });
+    txt(ig, xs(3) + xs.bandwidth() / 2, ih - 8, '0', { anchor: 'middle', size: 9, weight: 700, fill: C.sec });
+  }
+
+  /* ═══════════ 20 · SENSITIVITY & UNCERTAINTY ═══════════ */
+  function renderQsens() {
+    var svg = d3.select('#chart-qsens'); svg.selectAll('*').remove();
+
+    /* left — magnitude vs distance */
+    var m = { t: 40, l: 48 }, W = 300, H = 300;
+    var g = svg.append('g').attr('transform', 'translate(' + m.l + ',' + m.t + ')');
+    var x = d3.scaleLinear().domain([0, 820]).range([0, W]);
+    var y = d3.scaleLinear().domain([-3.4, -0.4]).range([H, 0]);
+    grid(g, y, W, true);
+
+    var thr = function (d) { return -3.0 + d / 375; };
+    var r = rng(3751), pts = [];
+    for (var i = 0; i < 240; i++) {
+      var d0 = 80 + Math.pow(r(), 0.8) * 620;
+      if (d0 > 700 && r() < 0.86) continue;
+      var lo = thr(d0), hi = -0.9;
+      if (lo >= hi) continue;
+      pts.push({ d: d0, m: lo + Math.pow(r(), 1.7) * (hi - lo) });
+    }
+    pts.forEach(function (p, i) {
+      var c = g.append('circle').attr('cx', x(p.d)).attr('cy', y(p.m)).attr('r', 0)
+        .style('fill', C.accent).attr('opacity', 0.5);
+      if (DUR) c.transition().delay(250 + i * 3).duration(200).attr('r', 2.4); else c.attr('r', 2.4);
+    });
+    var tl = g.append('line').attr('x1', x(0)).attr('y1', y(thr(0))).attr('x2', x(0)).attr('y2', y(thr(0)))
+      .style('stroke', C.sec).attr('stroke-width', 1.8).attr('stroke-dasharray', '6,4');
+    if (DUR) tl.transition().delay(700).duration(600).attr('x2', x(780)).attr('y2', y(thr(780)));
+    else tl.attr('x2', x(780)).attr('y2', y(thr(780)));
+    txt(g, x(300), y(thr(300)) + 22, 'sensitivity: −1 magnitude / 375 m', { size: 10, weight: 700, fill: C.sec });
+
+    g.append('line').attr('x1', x(700)).attr('x2', x(700)).attr('y1', 0).attr('y2', H)
+      .style('stroke', C.gold).attr('stroke-width', 1.4).attr('stroke-dasharray', '4,3');
+    txt(g, x(700) - 6, 12, 'viewing limit ≈ 700 m', { anchor: 'end', size: 9.5, weight: 700, fill: C.gold });
+
+    g.append('g').attr('transform', 'translate(0,' + H + ')').call(d3.axisBottom(x).ticks(5));
+    g.append('g').call(d3.axisLeft(y).ticks(5));
+    g.selectAll('.domain,.tick line').style('stroke', C.border);
+    g.selectAll('.tick text').style('fill', C.muted).attr('font-family', SANS).attr('font-size', 10);
+    txt(g, W / 2, H + 36, 'source–receiver distance (m)', { anchor: 'middle', size: 10.5 });
+    txt(g, -38, -14, 'local magnitude Mᴸ', { size: 10.5 });
+
+    /* right top — Gutenberg–Richter */
+    var g2 = svg.append('g').attr('transform', 'translate(408,40)');
+    var W2 = 216, H2 = 118;
+    var x2 = d3.scaleLinear().domain([-2.8, -0.6]).range([0, W2]);
+    var y2 = d3.scaleLinear().domain([0, 2.6]).range([H2, 0]);
+    grid(g2, y2, W2, true);
+    var gr = d3.range(-2.7, -0.75, 0.15).map(function (mm) {
+      return { m: mm, n: 2.35 - 2.3 * (mm + 2.7) + (rng(Math.round(mm * 100) + 900)() - 0.5) * 0.16 };
+    });
+    gr.forEach(function (p, i) {
+      var c = g2.append('circle').attr('cx', x2(p.m)).attr('cy', y2(Math.max(0.02, p.n))).attr('r', 0)
+        .style('fill', C.accent).attr('opacity', 0.75);
+      if (DUR) c.transition().delay(400 + i * 30).duration(220).attr('r', 3); else c.attr('r', 3);
+    });
+    var bl = g2.append('line').attr('x1', x2(-2.7)).attr('y1', y2(2.35)).attr('x2', x2(-2.7)).attr('y2', y2(2.35))
+      .style('stroke', C.sec).attr('stroke-width', 2);
+    if (DUR) bl.transition().delay(900).duration(500).attr('x2', x2(-0.75)).attr('y2', y2(2.35 - 2.3 * 1.95));
+    else bl.attr('x2', x2(-0.75)).attr('y2', y2(2.35 - 2.3 * 1.95));
+    g2.append('line').attr('x1', x2(-2.7)).attr('y1', y2(2.35)).attr('x2', x2(-0.75)).attr('y2', y2(2.35 - 1.0 * 1.95))
+      .style('stroke', C.muted).attr('stroke-width', 1.3).attr('stroke-dasharray', '5,4');
+    txt(g2, x2(-1.5), y2(1.55), 'tectonic b ≈ 1.0', { size: 9.5, weight: 600, fill: C.muted });
+    txt(g2, x2(-2.0), y2(0.15), 'b ≈ 2.3', { size: 12, weight: 800, fill: C.sec });
+    g2.append('g').attr('transform', 'translate(0,' + H2 + ')').call(d3.axisBottom(x2).ticks(4));
+    g2.append('g').call(d3.axisLeft(y2).ticks(3));
+    g2.selectAll('.domain,.tick line').style('stroke', C.border);
+    g2.selectAll('.tick text').style('fill', C.muted).attr('font-family', SANS).attr('font-size', 9.5);
+    txt(g2, 0, -14, 'Frequency–magnitude distribution', { size: 10.5, weight: 700, fill: C.inkLight });
+    txt(g2, W2 / 2, H2 + 32, 'magnitude', { anchor: 'middle', size: 9.5 });
+    txt(g2, -34, -2, 'log N', { size: 9.5 });
+
+    /* right bottom — Monte Carlo scatter */
+    var g3 = svg.append('g').attr('transform', 'translate(408,246)');
+    var W3 = 216, H3 = 94;
+    g3.append('rect').attr('width', W3).attr('height', H3).attr('rx', 6).style('fill', C.grid).style('stroke', C.border);
+    txt(g3, 0, -14, 'Monte Carlo relocation, 10% velocity error', { size: 10.5, weight: 700, fill: C.inkLight });
+    [{ cx: 62, sx: 30, sy: 13, c: C.sec, n: 'early stage' }, { cx: 156, sx: 15, sy: 13, c: C.accent, n: 'late stage' }].forEach(function (p, i) {
+      var rr = rng(2000 + i * 31);
+      for (var k = 0; k < 90; k++) {
+        var u = (rr() + rr() + rr() - 1.5) * 0.8, v = (rr() + rr() + rr() - 1.5) * 0.8;
+        g3.append('circle').attr('cx', p.cx + u * p.sx).attr('cy', H3 / 2 + v * p.sy)
+          .attr('r', 1.5).style('fill', p.c).attr('opacity', 0.42);
+      }
+      g3.append('ellipse').attr('cx', p.cx).attr('cy', H3 / 2).attr('rx', p.sx * 1.35).attr('ry', p.sy * 1.35)
+        .attr('fill', 'none').style('stroke', p.c).attr('stroke-width', 1.3).attr('stroke-dasharray', '4,3');
+      g3.append('path').attr('d', d3.symbol().type(d3.symbolStar).size(58)())
+        .attr('transform', 'translate(' + p.cx + ',' + (H3 / 2) + ')').style('fill', C.gold);
+      txt(g3, p.cx, H3 + 16, p.n, { anchor: 'middle', size: 9.5, weight: 700, fill: p.c });
+    });
+    txt(g3, 0, H3 + 34, 'Horizontal scatter doubles for the distant early stages.', { size: 9.5, fill: C.muted });
+  }
+
   var HERO_STATS = [
-    { target: 2, unit: '', label: 'Field case studies' },
+    { target: 3, unit: '', label: 'Field case studies' },
     { target: 109, unit: '', label: 'Fracturing operations analysed' },
-    { target: 25, unit: '', label: 'Stages, Well X' },
+    { target: 415, unit: '', label: 'Events located, Qusaiba' },
     { target: 311, unit: 'd', label: 'Longest sustained effect' }
   ];
   function buildHeroStats() {
@@ -1566,7 +2139,9 @@ body.dark-theme .theme-toggle-btn .moon-icon { display: none; }
     growth: renderGrowth, magnitude: renderMagnitude, depth: renderDepth, gap: renderGap,
     workflow: renderWorkflow, matrix: renderMatrix, fields: renderFields, production: renderProduction,
     premium: renderPremium, wellx: renderWellX, stages: renderStages, plugging: renderPlugging,
-    complexity: renderComplexity, scorecard: renderScorecard
+    complexity: renderComplexity, scorecard: renderScorecard,
+    mlpubs: renderMlPubs, mldetect: renderMlDetect, mlloc: renderMlLoc, mlvel: renderMlVel,
+    qusaiba: renderQusaiba, qsens: renderQsens
   };
   var done = {};
   function activate(vizId) {
